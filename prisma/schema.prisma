@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -14,30 +15,61 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String
-  role      Role     @default(STUDENT)
-  classesTaught      Class[]     @relation("TeacherClasses")
-  recordingsUploaded Recording[] @relation("UserRecordings")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String       @id @default(cuid())
+  name               String?
+  email              String       @unique
+  password           String
+  role               Role         @default(STUDENT)
+  coursesTaught      Course[]     @relation("TeacherCourses")
+  enrollments        Enrollment[]
+  classesTaught      Class[]      @relation("TeacherClasses")
+  recordingsUploaded Recording[]  @relation("UserRecordings")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 }
 
 enum ClassStatus {
   SCHEDULED
-  COMPLETED
-  CANCELLED
+  LIVE
+  ENDED
+}
+
+model Course {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  teacherId   String
+  teacher     User         @relation("TeacherCourses", fields: [teacherId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  classes     Class[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([teacherId])
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
 }
 
 model Class {
   id              String      @id @default(cuid())
+  courseId        String
+  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title           String
   description     String?
+  roomName        String      @unique
   scheduledAt     DateTime
   durationMinutes Int         @default(60)
-  meetLink        String
   status          ClassStatus @default(SCHEDULED)
   teacherId       String
   teacher         User        @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
@@ -46,6 +78,7 @@ model Class {
   updatedAt       DateTime    @updatedAt
 
   @@index([teacherId])
+  @@index([courseId])
   @@index([scheduledAt])
 }
 

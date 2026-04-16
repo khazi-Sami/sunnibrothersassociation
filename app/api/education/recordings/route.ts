@@ -11,10 +11,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const where =
+    session.user.role === "ADMIN"
+      ? {}
+      : session.user.role === "TEACHER"
+        ? { class: { teacherId: session.user.id } }
+        : { class: { course: { enrollments: { some: { studentId: session.user.id } } } } };
+
   const recordings = await prisma.recording.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: {
-      class: { select: { id: true, title: true, scheduledAt: true } },
+      class: { select: { id: true, title: true, scheduledAt: true, course: { select: { id: true, title: true } } } },
       createdBy: { select: { name: true, email: true } },
     },
   });

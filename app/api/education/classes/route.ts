@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { tryCreateGoogleMeetLink } from "@/lib/education/meet";
+import { autoExpireClassIfNeeded, generateRoomName } from "@/lib/education/liveClasses";
 
 export async function GET() {
   const prisma = getPrisma();
@@ -12,12 +12,55 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const classes = await prisma.class.findMany({
-    where: { status: "SCHEDULED", scheduledAt: { gte: new Date() } },
-    orderBy: { scheduledAt: "asc" },
-    include: { teacher: { select: { name: true, email: true } } },
-  });
+  const now = new Date();
 
+  // Auto-expire classes that passed their duration window.
+  const liveClasses = await prisma.class.findMany({
+    where: { status: "LIVE" },
+    select: { id: true },
+  });
+  await Promise.all(liveClasses.map((klass) => autoExpireClassIfNeeded(klass.id)));
+
+  const baseWhere = {
+    OR: [{ status: "SCHEDULED" as const }, { status: "LIVE" as const }],
+    scheduledAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+  };
+
+  if (session.user.role === "ADMIN") {
+    const classes = await prisma.class.findMany({
+      where: baseWhere,
+      orderBy: { scheduledAt: "asc" },
+      include: {
+        teacher: { select: { name: true, email: true } },
+        course: { select: { id: true, title: true } },
+      },
+    });
+    return NextResponse.json({ classes });
+  }
+
+  if (session.user.role === "TEACHER") {
+    const classes = await prisma.class.findMany({
+      where: { ...baseWhere, teacherId: session.user.id },
+      orderBy: { scheduledAt: "asc" },
+      include: {
+        teacher: { select: { name: true, email: true } },
+        course: { select: { id: true, title: true } },
+      },
+    });
+    return NextResponse.json({ classes });
+  }
+
+  const classes = await prisma.class.findMany({
+    where: {
+      ...baseWhere,
+      course: { enrollments: { some: { studentId: session.user.id } } },
+    },
+    orderBy: { scheduledAt: "asc" },
+    include: {
+      teacher: { select: { name: true, email: true } },
+      course: { select: { id: true, title: true } },
+    },
+  });
   return NextResponse.json({ classes });
 }
 
@@ -37,14 +80,13 @@ export async function POST(req: Request) {
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
   const title = String(body.title ?? "").trim();
+  const courseId = String(body.courseId ?? "").trim();
   const description = String(body.description ?? "").trim() || null;
   const scheduledAtRaw = String(body.scheduledAt ?? "").trim();
   const durationMinutes = Number(body.durationMinutes ?? 60);
-  const mode = String(body.mode ?? "manual");
-  const manualMeetLink = String(body.manualMeetLink ?? "").trim();
 
-  if (!title || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15) {
-    return NextResponse.json({ error: "title, scheduledAt, and valid durationMinutes are required" }, { status: 400 });
+  if (!title || !courseId || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15) {
+    return NextResponse.json({ error: "title, courseId, scheduledAt, and valid durationMinutes are required" }, { status: 400 });
   }
 
   const scheduledAt = new Date(scheduledAtRaw);
@@ -52,34 +94,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid scheduledAt" }, { status: 400 });
   }
 
-  let meetLink = manualMeetLink;
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, teacherId: true },
+  });
 
-  if (mode === "auto") {
-    try {
-      meetLink = await tryCreateGoogleMeetLink({
-        title,
-        description: description ?? undefined,
-        scheduledAt,
-        durationMinutes,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Meet link creation failed";
-      return NextResponse.json({ error: message }, { status: 400 });
-    }
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
 
-  if (!meetLink || !/^https?:\/\//i.test(meetLink)) {
-    return NextResponse.json({ error: "Valid meet link is required (or use auto mode with API config)." }, { status: 400 });
+  if (session.user.role === "TEACHER" && course.teacherId !== session.user.id) {
+    return NextResponse.json({ error: "You can only schedule classes for your own course" }, { status: 403 });
   }
 
   const created = await prisma.class.create({
     data: {
+      courseId,
       title,
       description,
+      roomName: generateRoomName(courseId),
       scheduledAt,
       durationMinutes,
-      meetLink,
-      teacherId: session.user.id,
+      teacherId: session.user.role === "ADMIN" ? course.teacherId : session.user.id,
     },
   });
 

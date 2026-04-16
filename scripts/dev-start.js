@@ -7,18 +7,22 @@ const fs = require("fs");
 const D_ROOT = path.join(__dirname, "..");
 const LOCAL_ROOT = D_ROOT;
 const C_ROOT = "C:\\MyProjects\\sunnibrothersassociation";
+const LOCAL_NEXT_BIN = path.join(LOCAL_ROOT, "node_modules", "next", "dist", "bin", "next");
 const D_APP  = path.join(D_ROOT, "app");
 const D_LIB = path.join(D_ROOT, "lib");
 const D_PRISMA = path.join(D_ROOT, "prisma");
+const D_PUBLIC = path.join(D_ROOT, "public");
 const C_APP  = path.join(C_ROOT, "app");
 const C_LIB = path.join(C_ROOT, "lib");
 const C_PRISMA = path.join(C_ROOT, "prisma");
+const C_PUBLIC = path.join(C_ROOT, "public");
 const C_DEV  = path.join(C_ROOT, ".next", "dev");
 const isWindows = process.platform === "win32";
+const useLegacyWindowsSync = isWindows && process.env.LEGACY_WINDOWS_SYNC === "1";
 
-if (!isWindows) {
+if (!useLegacyWindowsSync) {
   console.log("Starting Next.js dev server from local project root…");
-  const next = spawn("npx", ["next", "dev"], {
+  const next = spawn("node", [LOCAL_NEXT_BIN, "dev", "--webpack"], {
     cwd: LOCAL_ROOT,
     stdio: "inherit",
     env: { ...process.env },
@@ -64,8 +68,11 @@ try {
   execSync(`robocopy "${D_PRISMA}" "${C_PRISMA}" /MIR /NFL /NDL /NJH /NJS /NC /NS /NP`, {
     stdio: "ignore",
   });
+  execSync(`robocopy "${D_PUBLIC}" "${C_PUBLIC}" /MIR /NFL /NDL /NJH /NJS /NC /NS /NP`, {
+    stdio: "ignore",
+  });
 
-  const filesToCopy = ["tsconfig.json", "next-auth.d.ts", "package.json"];
+  const filesToCopy = ["tsconfig.json", "next-auth.d.ts", "package.json", "next.config.ts"];
   for (const file of filesToCopy) {
     const src = path.join(D_ROOT, file);
     const dst = path.join(C_ROOT, file);

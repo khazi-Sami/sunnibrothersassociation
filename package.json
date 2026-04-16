@@ -7,10 +7,11 @@
     "dev:cleanup": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$port3000 = (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue).OwningProcess; if ($port3000) { Stop-Process -Id $port3000 -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 600 }; if (Test-Path 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\.next\\\\dev') { Remove-Item 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\.next\\\\dev' -Recurse -Force -ErrorAction SilentlyContinue }; robocopy 'D:\\\\MyProjects\\\\sunnibrothersassociation\\\\app' 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\app' /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null\"",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prisma:seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/adapter-pg": "^6.19.2",
     "@prisma/client": "^6.19.2",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.3.1",

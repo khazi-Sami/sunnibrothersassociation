@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { getPrisma } from "@/lib/prisma";
 
+type SignupRole = "TEACHER" | "STUDENT";
+
+function isSignupRole(value: unknown): value is SignupRole {
+  return value === "TEACHER" || value === "STUDENT";
+}
+
 export async function POST(req: Request) {
   try {
     const prisma = getPrisma();
@@ -13,6 +19,8 @@ export async function POST(req: Request) {
     const name = (body.name ?? "").toString().trim();
     const email = (body.email ?? "").toString().trim().toLowerCase();
     const password = (body.password ?? "").toString();
+    const roleRaw = (body.role ?? "STUDENT").toString().trim().toUpperCase();
+    const role: SignupRole = isSignupRole(roleRaw) ? roleRaw : "STUDENT";
 
     if (!email || !password) {
       return NextResponse.json(
@@ -36,7 +44,7 @@ export async function POST(req: Request) {
     const hash = await bcrypt.hash(password, 10);
 
     await prisma.user.create({
-      data: { name: name || null, email, password: hash },
+      data: { name: name || null, email, password: hash, role },
     });
 
     return NextResponse.json({ ok: true }, { status: 201 });

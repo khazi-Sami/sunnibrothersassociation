@@ -1,23 +1,28 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
-type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; meetLink: string; teacher: { name: string | null; email: string } };
-type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string }; createdBy: { name: string | null; email: string } };
+type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string } };
+type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: "SCHEDULED" | "LIVE" | "ENDED"; roomName: string; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
+type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
 
 export default function EducationClient({ role }: { role: Role }) {
+  const [courses, setCourses] = useState<CourseItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [recordings, setRecordings] = useState<RecordingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [courseTitle, setCourseTitle] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
+  const [creatingCourse, setCreatingCourse] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
-  const [mode, setMode] = useState<"auto" | "manual">("manual");
-  const [manualMeetLink, setManualMeetLink] = useState("");
   const [scheduling, setScheduling] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [recordingTitle, setRecordingTitle] = useState("");
@@ -26,25 +31,72 @@ export default function EducationClient({ role }: { role: Role }) {
   const [recordingFile, setRecordingFile] = useState<File | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState(false);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [classesRes, recordingsRes] = await Promise.all([fetch("/api/education/classes", { cache: "no-store" }), fetch("/api/education/recordings", { cache: "no-store" })]);
-      if (!classesRes.ok || !recordingsRes.ok) throw new Error("Failed to load education data");
+      const [coursesRes, classesRes, recordingsRes] = await Promise.all([
+        fetch("/api/education/courses", { cache: "no-store" }),
+        fetch("/api/education/classes", { cache: "no-store" }),
+        fetch("/api/education/recordings", { cache: "no-store" }),
+      ]);
+      if (!coursesRes.ok || !classesRes.ok || !recordingsRes.ok) throw new Error("Failed to load education data");
+      const coursesJson = (await coursesRes.json()) as { courses: CourseItem[] };
       const classesJson = (await classesRes.json()) as { classes: ClassItem[] };
       const recordingsJson = (await recordingsRes.json()) as { recordings: RecordingItem[] };
+      setCourses(coursesJson.courses ?? []);
       setClasses(classesJson.classes ?? []);
       setRecordings(recordingsJson.recordings ?? []);
+      if ((coursesJson.courses?.length ?? 0) > 0) {
+        setSelectedCourseId((prev) => prev || coursesJson.courses[0].id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load education data");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  const teacherClasses = useMemo(() => classes, [classes]);
+
+  async function handleCreateCourse(e: React.FormEvent) {
+    e.preventDefault();
+    setCreatingCourse(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/education/courses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: courseTitle, description: courseDescription }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Unable to create course");
+      setCourseTitle("");
+      setCourseDescription("");
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to create course");
+    } finally {
+      setCreatingCourse(false);
+    }
   }
 
-  useEffect(() => { loadData(); }, []);
-  const teacherClasses = useMemo(() => classes, [classes]);
+  async function handleEnroll(courseId: string) {
+    setError(null);
+    try {
+      const res = await fetch("/api/education/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 409) throw new Error(data?.error ?? "Unable to enroll");
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to enroll");
+    }
+  }
 
   async function handleScheduleClass(e: React.FormEvent) {
     e.preventDefault();
@@ -54,11 +106,17 @@ export default function EducationClient({ role }: { role: Role }) {
       const res = await fetch("/api/education/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, scheduledAt: new Date(scheduledAt).toISOString(), durationMinutes, mode, manualMeetLink }),
+        body: JSON.stringify({
+          title,
+          courseId: selectedCourseId,
+          description,
+          scheduledAt: new Date(scheduledAt).toISOString(),
+          durationMinutes,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Unable to schedule class");
-      setTitle(""); setDescription(""); setScheduledAt(""); setDurationMinutes(60); setManualMeetLink("");
+      setTitle(""); setDescription(""); setScheduledAt(""); setDurationMinutes(60);
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to schedule class");
@@ -118,7 +176,7 @@ export default function EducationClient({ role }: { role: Role }) {
             <p style={bodyStyle}>Teachers can schedule classes and upload recordings while students get a cleaner view of upcoming sessions and lesson content.</p>
             <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <span style={chipStyle}>Logged in as: {role}</span>
-              <span style={chipStyle}>Auto Meet + Manual Link</span>
+              <span style={chipStyle}>Jitsi Live Classes</span>
             </div>
             {error ? <div style={{ ...errorStyle, marginTop: 18 }}>{error}</div> : null}
           </div>
@@ -129,21 +187,30 @@ export default function EducationClient({ role }: { role: Role }) {
 
         {(role === "TEACHER" || role === "ADMIN") && (
           <div className="edu-form-grid" style={{ display: "grid", gap: 20 }}>
+            <form onSubmit={handleCreateCourse} style={panelStyle}>
+              <div style={smallLabelStyle}>Courses</div>
+              <h2 style={sectionTitleStyle}>Create course.</h2>
+              <div style={formGridStyle}>
+                <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} required placeholder="Course title" style={inputStyle} />
+                <textarea value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} rows={3} placeholder="Course description" style={inputStyle} />
+                <button type="submit" disabled={creatingCourse} style={primaryButton}>{creatingCourse ? "Creating..." : "Create Course"}</button>
+              </div>
+            </form>
+
             <form onSubmit={handleScheduleClass} style={panelStyle}>
               <div style={smallLabelStyle}>Teacher Dashboard</div>
               <h2 style={sectionTitleStyle}>Schedule a class.</h2>
               <div style={formGridStyle}>
+                <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} required style={inputStyle}>
+                  <option value="">Select course</option>
+                  {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Class title" style={inputStyle} />
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Class description" style={inputStyle} />
                 <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                   <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} required style={inputStyle} />
                   <input type="number" min={15} value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} required style={inputStyle} />
                 </div>
-                <div style={{ display: "flex", gap: 18, flexWrap: "wrap", padding: "12px 14px", borderRadius: 18, background: "rgba(245,248,245,0.9)" }}>
-                  <label style={radioLabelStyle}><input type="radio" checked={mode === "auto"} onChange={() => setMode("auto")} /> Auto Meet</label>
-                  <label style={radioLabelStyle}><input type="radio" checked={mode === "manual"} onChange={() => setMode("manual")} /> Manual link</label>
-                </div>
-                {mode === "manual" ? <input value={manualMeetLink} onChange={(e) => setManualMeetLink(e.target.value)} required placeholder="https://meet.google.com/xxx-xxxx-xxx" style={inputStyle} /> : null}
                 <button type="submit" disabled={scheduling} style={primaryButton}>{scheduling ? "Scheduling..." : "Schedule Class"}</button>
               </div>
             </form>
@@ -167,6 +234,27 @@ export default function EducationClient({ role }: { role: Role }) {
         )}
 
         <section style={panelStyle}>
+          <div style={smallLabelStyle}>Courses</div>
+          <h2 style={sectionTitleStyle}>Course catalog.</h2>
+          {loading ? <p style={mutedStyle}>Loading courses...</p> : courses.length === 0 ? <p style={mutedStyle}>No courses available yet.</p> : (
+            <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
+              {courses.map((course) => (
+                <div key={course.id} style={contentCardStyle}>
+                  <h3 style={{ fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{course.title}</h3>
+                  <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{course.description || "No description"}</p>
+                  <p style={{ marginTop: 8, color: "#7a8a83", fontSize: 14 }}>Teacher: {course.teacher.name || course.teacher.email}</p>
+                  {role === "STUDENT" ? (
+                    <button onClick={() => handleEnroll(course.id)} style={{ ...primaryButton, marginTop: 12 }}>
+                      Enroll
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section style={panelStyle}>
           <div style={smallLabelStyle}>Live Classes</div>
           <h2 style={sectionTitleStyle}>Upcoming sessions.</h2>
           {loading ? <p style={mutedStyle}>Loading classes...</p> : classes.length === 0 ? <p style={mutedStyle}>No upcoming classes yet.</p> : (
@@ -178,12 +266,14 @@ export default function EducationClient({ role }: { role: Role }) {
                       <h3 style={{ fontSize: 28, lineHeight: 1.02, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{klass.title}</h3>
                       <p style={{ marginTop: 10, color: "#586a62", lineHeight: 1.7 }}>{klass.description || "No description"}</p>
                       <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>
-                        {new Date(klass.scheduledAt).toLocaleString()} • {klass.durationMinutes} mins • Teacher: {klass.teacher.name || klass.teacher.email}
+                        {new Date(klass.scheduledAt).toLocaleString()} • {klass.durationMinutes} mins • Course: {klass.course.title} • Teacher: {klass.teacher.name || klass.teacher.email}
                       </p>
                     </div>
-                    <a href={klass.meetLink} target="_blank" rel="noreferrer" style={primaryButton}>
-                      {role === "TEACHER" || role === "ADMIN" ? "Start Class" : "Join Class"}
-                    </a>
+                    <Link href={`/classes/${klass.id}`} style={primaryButton}>
+                      {role === "TEACHER" || role === "ADMIN"
+                        ? klass.status === "LIVE" ? "Open Live Room" : "Manage Class"
+                        : klass.status === "LIVE" ? "Join Live Class" : "View Details"}
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -250,4 +340,3 @@ const primaryButton: React.CSSProperties = { width: "fit-content", border: "none
 const mutedStyle: React.CSSProperties = { marginTop: 18, color: "#66776f", lineHeight: 1.7 };
 const contentCardStyle: React.CSSProperties = { borderRadius: 26, padding: "22px 20px", background: "rgba(255,255,255,0.78)", border: "1px solid rgba(20,42,31,0.08)" };
 const errorStyle: React.CSSProperties = { color: "#b42318", background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.16)", borderRadius: 16, padding: "12px 14px" };
-const radioLabelStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, color: "#566860" };

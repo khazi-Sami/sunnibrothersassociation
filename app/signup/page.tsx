@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function SignupPage() {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, role }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -44,6 +45,16 @@ export default function SignupPage() {
               <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
               <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
               <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+              <div style={roleWrapStyle}>
+                <label style={radioLabelStyle}>
+                  <input type="radio" name="role" value="STUDENT" checked={role === "STUDENT"} onChange={() => setRole("STUDENT")} />
+                  Student
+                </label>
+                <label style={radioLabelStyle}>
+                  <input type="radio" name="role" value="TEACHER" checked={role === "TEACHER"} onChange={() => setRole("TEACHER")} />
+                  Teacher
+                </label>
+              </div>
               <button type="submit" disabled={loading} style={primaryButton}>{loading ? "Creating..." : "Signup"}</button>
             </form>
 
@@ -90,6 +101,8 @@ const eyebrowStyle: React.CSSProperties = { display: "inline-flex", padding: "8p
 const titleStyle: React.CSSProperties = { margin: "18px 0 0", fontSize: "clamp(2.6rem, 6vw, 4.6rem)", lineHeight: 0.98, color: "#142a1f", letterSpacing: "-0.05em", fontFamily: "var(--font-playfair), Georgia, serif" };
 const subtitleStyle: React.CSSProperties = { margin: "18px 0 0", color: "#566860", fontSize: 18, lineHeight: 1.75 };
 const inputStyle: React.CSSProperties = { padding: "15px 16px", borderRadius: 18, border: "1px solid rgba(20,42,31,0.10)", background: "rgba(255,255,255,0.92)", fontSize: 16 };
+const roleWrapStyle: React.CSSProperties = { display: "flex", gap: 18, padding: "12px 14px", borderRadius: 14, border: "1px solid rgba(20,42,31,0.10)", background: "rgba(245,248,245,0.9)" };
+const radioLabelStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, color: "#1f3c2e", fontWeight: 600 };
 const primaryButton: React.CSSProperties = { border: "none", cursor: "pointer", textDecoration: "none", background: "linear-gradient(180deg, #174d37, #123b2c)", color: "white", borderRadius: 999, padding: "15px 20px", fontWeight: 800, fontSize: 16, marginTop: 4 };
 const errorStyle: React.CSSProperties = { marginTop: 18, color: "#b42318", background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.16)", borderRadius: 16, padding: "12px 14px" };
 const footerTextStyle: React.CSSProperties = { marginTop: 20, color: "#566860", fontSize: 15 };
