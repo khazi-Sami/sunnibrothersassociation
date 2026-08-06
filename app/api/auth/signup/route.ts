@@ -1,11 +1,34 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/prisma";
 
 type SignupRole = "TEACHER" | "STUDENT";
 
 function isSignupRole(value: unknown): value is SignupRole {
   return value === "TEACHER" || value === "STUDENT";
+}
+
+function getSignupError(err: unknown) {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === "P1001") {
+      const databaseHost = err.meta?.database_host;
+      const host = typeof databaseHost === "string" ? ` at ${databaseHost}` : "";
+
+      return {
+        message: `Can't reach database server${host}. Please make sure your database server is running.`,
+        status: 503,
+      };
+    }
+
+    return { message: err.message, status: 500 };
+  }
+
+  if (err instanceof Error) {
+    return { message: err.message, status: 500 };
+  }
+
+  return { message: "Signup failed", status: 500 };
 }
 
 export async function POST(req: Request) {
@@ -50,6 +73,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     console.error("SIGNUP_ERROR:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const { message, status } = getSignupError(err);
+    return NextResponse.json({ error: message }, { status });
   }
 }

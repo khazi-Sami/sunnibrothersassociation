@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
-type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string } };
+type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string }; isEnrolled?: boolean };
 type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: "SCHEDULED" | "LIVE" | "ENDED"; roomName: string; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
 type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
 
@@ -31,8 +31,10 @@ export default function EducationClient({ role }: { role: Role }) {
   const [recordingFile, setRecordingFile] = useState<File | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [coursesRes, classesRes, recordingsRes] = await Promise.all([
@@ -40,10 +42,22 @@ export default function EducationClient({ role }: { role: Role }) {
         fetch("/api/education/classes", { cache: "no-store" }),
         fetch("/api/education/recordings", { cache: "no-store" }),
       ]);
-      if (!coursesRes.ok || !classesRes.ok || !recordingsRes.ok) throw new Error("Failed to load education data");
-      const coursesJson = (await coursesRes.json()) as { courses: CourseItem[] };
-      const classesJson = (await classesRes.json()) as { classes: ClassItem[] };
-      const recordingsJson = (await recordingsRes.json()) as { recordings: RecordingItem[] };
+
+      // Parse each independently so one failure doesn't block the others.
+      const coursesJson = coursesRes.ok
+        ? ((await coursesRes.json().catch(() => ({}))) as { courses: CourseItem[] })
+        : { courses: [] as CourseItem[] };
+      const classesJson = classesRes.ok
+        ? ((await classesRes.json().catch(() => ({}))) as { classes: ClassItem[] })
+        : { classes: [] as ClassItem[] };
+      const recordingsJson = recordingsRes.ok
+        ? ((await recordingsRes.json().catch(() => ({}))) as { recordings: RecordingItem[] })
+        : { recordings: [] as RecordingItem[] };
+
+      if (!coursesRes.ok && !classesRes.ok && !recordingsRes.ok) {
+        throw new Error("Failed to load education data — please check your connection and try again");
+      }
+
       setCourses(coursesJson.courses ?? []);
       setClasses(classesJson.classes ?? []);
       setRecordings(recordingsJson.recordings ?? []);
@@ -53,11 +67,22 @@ export default function EducationClient({ role }: { role: Role }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load education data");
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      loadData(true).catch(() => undefined);
+    }, 20000);
+
+    return () => window.clearInterval(interval);
+  }, [loadData]);
+
   const teacherClasses = useMemo(() => classes, [classes]);
 
   async function handleCreateCourse(e: React.FormEvent) {
@@ -202,14 +227,35 @@ export default function EducationClient({ role }: { role: Role }) {
               <h2 style={sectionTitleStyle}>Schedule a class.</h2>
               <div style={formGridStyle}>
                 <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} required style={inputStyle}>
-                  <option value="">Select course</option>
+                  <option value="">{courses.length === 0 ? "— Create a course first (above) —" : "Select course"}</option>
                   {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Class title" style={inputStyle} />
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Class description" style={inputStyle} />
                 <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} required style={inputStyle} />
-                  <input type="number" min={15} value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} required style={inputStyle} />
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Date &amp; Time (future only)</span>
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      required
+                      style={inputStyle}
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Duration (minutes)</span>
+                    <input
+                      type="number"
+                      min={15}
+                      max={480}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                      required
+                      style={inputStyle}
+                    />
+                  </label>
                 </div>
                 <button type="submit" disabled={scheduling} style={primaryButton}>{scheduling ? "Scheduling..." : "Schedule Class"}</button>
               </div>
@@ -220,7 +266,7 @@ export default function EducationClient({ role }: { role: Role }) {
               <h2 style={sectionTitleStyle}>Upload a lesson.</h2>
               <div style={formGridStyle}>
                 <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} required style={inputStyle}>
-                  <option value="">Select class</option>
+                  <option value="">{teacherClasses.length === 0 ? "— Schedule a class first (above) —" : "Select class"}</option>
                   {teacherClasses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
                 <input value={recordingTitle} onChange={(e) => setRecordingTitle(e.target.value)} required placeholder="Recording title" style={inputStyle} />
@@ -244,8 +290,17 @@ export default function EducationClient({ role }: { role: Role }) {
                   <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{course.description || "No description"}</p>
                   <p style={{ marginTop: 8, color: "#7a8a83", fontSize: 14 }}>Teacher: {course.teacher.name || course.teacher.email}</p>
                   {role === "STUDENT" ? (
-                    <button onClick={() => handleEnroll(course.id)} style={{ ...primaryButton, marginTop: 12 }}>
-                      Enroll
+                    <button
+                      onClick={() => handleEnroll(course.id)}
+                      disabled={course.isEnrolled}
+                      style={{
+                        ...primaryButton,
+                        marginTop: 12,
+                        opacity: course.isEnrolled ? 0.7 : 1,
+                        cursor: course.isEnrolled ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {course.isEnrolled ? "Enrolled" : "Enroll"}
                     </button>
                   ) : null}
                 </div>

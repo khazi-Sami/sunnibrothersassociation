@@ -33,29 +33,21 @@ async function main() {
     where: { id: "demo-live-course" },
     update: {
       title: "Fiqh Essentials",
-      description: "Foundational live weekly class.",
+      description: "Foundational weekly live class covering basic Islamic jurisprudence.",
       teacherId: teacher.id,
     },
     create: {
       id: "demo-live-course",
       title: "Fiqh Essentials",
-      description: "Foundational live weekly class.",
+      description: "Foundational weekly live class covering basic Islamic jurisprudence.",
       teacherId: teacher.id,
     },
   });
 
   await prisma.enrollment.upsert({
-    where: {
-      studentId_courseId: {
-        studentId: student.id,
-        courseId: course.id,
-      },
-    },
+    where: { studentId_courseId: { studentId: student.id, courseId: course.id } },
     update: {},
-    create: {
-      studentId: student.id,
-      courseId: course.id,
-    },
+    create: { studentId: student.id, courseId: course.id },
   });
 
   const startAt = new Date(Date.now() + 30 * 60 * 1000);

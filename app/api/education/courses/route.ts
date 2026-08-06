@@ -29,12 +29,25 @@ export async function GET() {
   }
 
   const courses = await prisma.course.findMany({
-    where: { enrollments: { some: { studentId: session.user.id } } },
     orderBy: { createdAt: "desc" },
-    include: { teacher: { select: { id: true, name: true, email: true } } },
+    include: {
+      teacher: { select: { id: true, name: true, email: true } },
+      enrollments: {
+        where: { studentId: session.user.id },
+        select: { id: true },
+      },
+    },
   });
 
-  return NextResponse.json({ courses });
+  return NextResponse.json({
+    courses: courses.map((course) => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      teacher: course.teacher,
+      isEnrolled: course.enrollments.length > 0,
+    })),
+  });
 }
 
 export async function POST(req: Request) {

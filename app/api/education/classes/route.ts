@@ -94,6 +94,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid scheduledAt" }, { status: 400 });
   }
 
+  if (scheduledAt.getTime() <= Date.now()) {
+    return NextResponse.json({ error: "scheduledAt must be in the future" }, { status: 422 });
+  }
+
   const course = await prisma.course.findUnique({
     where: { id: courseId },
     select: { id: true, teacherId: true },

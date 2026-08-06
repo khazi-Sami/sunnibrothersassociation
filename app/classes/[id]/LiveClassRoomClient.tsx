@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import JitsiMeetFrame from "@/app/education/components/JitsiMeetFrame";
 
 type ClassPayload = {
@@ -28,7 +28,9 @@ export default function LiveClassRoomClient({
 }) {
   const [klass, setKlass] = useState(initialClass);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jitsiJwt, setJitsiJwt] = useState<string | null>(null);
 
   const isTeacher = klass.role === "TEACHER";
 
@@ -39,6 +41,37 @@ export default function LiveClassRoomClient({
     return klass.canJoin && klass.status === "LIVE";
   }, [klass, isTeacher]);
 
+  const refreshClass = useCallback(async () => {
+    const refresh = await fetch(`/api/education/classes/${klass.id}`, { cache: "no-store" });
+    const refreshData = await refresh.json().catch(() => ({}));
+    if (!refresh.ok || !refreshData?.class) {
+      throw new Error(refreshData?.error ?? "Unable to refresh class status");
+    }
+    setKlass(refreshData.class);
+  }, [klass.id]);
+
+  useEffect(() => {
+    const shouldPoll = !isTeacher && klass.status !== "ENDED";
+    if (!shouldPoll) return;
+
+    const interval = window.setInterval(() => {
+      setRefreshing(true);
+      refreshClass()
+        .catch(() => undefined)
+        .finally(() => setRefreshing(false));
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [isTeacher, klass.status, refreshClass]);
+
+  useEffect(() => {
+    if (klass.status !== "LIVE") return;
+    fetch(`/api/education/classes/${klass.id}/jitsi-token`, { method: "POST" })
+      .then((r) => r.json())
+      .then((data: { jwt?: string | null }) => setJitsiJwt(data.jwt ?? null))
+      .catch(() => undefined);
+  }, [klass.id, klass.status]);
+
   async function callLifecycle(action: "start" | "end") {
     setBusy(true);
     setError(null);
@@ -48,10 +81,7 @@ export default function LiveClassRoomClient({
       if (!res.ok) {
         throw new Error(data?.error ?? `Failed to ${action} class`);
       }
-
-      const refresh = await fetch(`/api/education/classes/${klass.id}`, { cache: "no-store" });
-      const refreshData = await refresh.json();
-      setKlass(refreshData.class);
+      await refreshClass();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error");
     } finally {
@@ -70,6 +100,7 @@ export default function LiveClassRoomClient({
         <p style={{ color: "#64748b", marginTop: 6 }}>
           Teacher: {klass.teacher.name || klass.teacher.email} • Duration: {klass.durationMinutes} minutes
         </p>
+        {!isTeacher && refreshing ? <p style={{ color: "#64748b", marginTop: 8 }}>Checking class status...</p> : null}
 
         {error ? <p style={{ marginTop: 12, color: "#b91c1c" }}>{error}</p> : null}
 
@@ -88,7 +119,7 @@ export default function LiveClassRoomClient({
       </section>
 
       {canRenderJitsi ? (
-        <JitsiMeetFrame roomName={klass.roomName} displayName={displayName} isTeacher={isTeacher} />
+        <JitsiMeetFrame roomName={klass.roomName} displayName={displayName} isTeacher={isTeacher} jwt={jitsiJwt} classId={klass.id} />
       ) : (
         <section style={{ border: "1px dashed #cbd5e1", borderRadius: 16, padding: 22, color: "#475569", background: "#f8fafc" }}>
           {isTeacher

@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sunni Brothers Association - Education Platform
 
-## Getting Started
+This is a Next.js + Prisma application with role-based education features:
 
-First, run the development server:
+- Course creation and enrollment
+- Live classes with Jitsi
+- Recorded lessons upload and playback
+
+## Prerequisites
+
+- Node.js 20+
+- A PostgreSQL database
+- npm (or pnpm/yarn)
+
+## Environment Variables
+
+Create a `.env` file in the project root and set:
+
+```bash
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
+
+NEXTAUTH_SECRET="replace-with-strong-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Optional: defaults to meet.jit.si when omitted
+# WARNING: meet.jit.si now requires the teacher to log in via Google/GitHub
+# inside Jitsi to become a moderator. Use JaaS or self-hosted to avoid this.
+NEXT_PUBLIC_JITSI_DOMAIN="meet.jit.si"
+
+# ── JaaS (Jitsi as a Service) – recommended free option ──────────────────────
+# 1. Sign up free at https://jaas.8x8.vc
+# 2. Create an app and copy the App ID and generate an RS256 or HS256 key pair
+# 3. Fill in the values below
+NEXT_PUBLIC_JITSI_DOMAIN="8x8.vc"
+NEXT_PUBLIC_JITSI_APP_ID=""      # your JaaS app id (also used for room prefix)
+JITSI_APP_ID=""                  # same as above – used server-side for JWT signing
+JITSI_APP_SECRET=""              # your JaaS API key secret
+```
+
+Notes:
+
+- `DATABASE_URL` is required at runtime.
+- `DIRECT_URL` is used for Prisma migration/CLI workflows.
+- `NEXTAUTH_SECRET` and `NEXTAUTH_URL` must be correct in production for stable sessions.
+
+## Setup
+
+```bash
+npm install
+npx prisma migrate deploy
+npx prisma generate
+```
+
+Optional local seed:
+
+```bash
+node prisma/seed.js
+```
+
+## Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Live Class Troubleshooting
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+If Jitsi live classes do not load:
 
-## Learn More
+1. Confirm session is valid and user is authenticated.
+2. Confirm class status is `LIVE`.
+3. Confirm browser can access `https://<NEXT_PUBLIC_JITSI_DOMAIN>/external_api.js`.
+4. Check camera/microphone permissions.
+5. Check firewall/CSP/ad-blockers are not blocking Jitsi resources.
 
-To learn more about Next.js, take a look at the following resources:
+If students cannot join classes:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Confirm student is enrolled in the course.
+2. Confirm class status has transitioned to `LIVE`.
+3. Confirm `/api/education/classes/:id` returns `canJoin: true` for the student.
