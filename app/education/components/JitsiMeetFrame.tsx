@@ -77,7 +77,7 @@ export default function JitsiMeetFrame({ roomName, displayName, isTeacher, jwt, 
     domain === "8x8.vc" && appId ? `vpaas-magic-cookie-${appId}/${roomName}` : roomName;
 
   useEffect(() => {
-    let api: ReturnType<NonNullable<typeof window.JitsiMeetExternalAPI>> | null = null;
+    let api: InstanceType<NonNullable<typeof window.JitsiMeetExternalAPI>> | null = null;
 
     async function mount() {
       if (!containerRef.current) return;
