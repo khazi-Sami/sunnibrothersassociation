@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
+import { parseClassMediaInput } from "@/lib/education/videoLinks";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
@@ -58,8 +59,98 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       course: { id: klass.course.id, title: klass.course.title },
       canStart: isTeacher && klass.status === "SCHEDULED",
       canEnd: isTeacher && klass.status === "LIVE",
+      canCancel: isTeacher && (klass.status === "SCHEDULED" || klass.status === "LIVE"),
+      canEdit: isTeacher && klass.status !== "ENDED" && klass.status !== "CANCELLED",
       canJoin: isTeacher || (isEnrolled && klass.status === "LIVE"),
       role: isTeacher ? "TEACHER" : "STUDENT",
     },
   });
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const prisma = getPrisma();
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Only teachers can update classes" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+
+  const existing = await prisma.class.findUnique({
+    where: { id },
+    select: { id: true, teacherId: true, status: true },
+  });
+
+  if (!existing) {
+    return NextResponse.json({ error: "Class not found" }, { status: 404 });
+  }
+
+  if (session.user.role === "TEACHER" && existing.teacherId !== session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (existing.status === "ENDED" || existing.status === "CANCELLED") {
+    return NextResponse.json({ error: "Cannot edit an ended or cancelled class" }, { status: 400 });
+  }
+
+  const title = String(body.title ?? "").trim();
+  const courseId = String(body.courseId ?? "").trim();
+  const description = String(body.description ?? "").trim() || null;
+  const scheduledAtRaw = String(body.scheduledAt ?? "").trim();
+  const durationMinutes = Number(body.durationMinutes ?? 60);
+  const media = parseClassMediaInput(body.classType, body.youtubeUrl, body.googleMeetUrl);
+
+  if (!title || !courseId || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15 || durationMinutes > 480) {
+    return NextResponse.json({ error: "title, courseId, scheduledAt, and valid durationMinutes are required" }, { status: 400 });
+  }
+
+  if (!media.ok) {
+    return NextResponse.json({ error: media.error }, { status: 400 });
+  }
+
+  const scheduledAt = new Date(scheduledAtRaw);
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return NextResponse.json({ error: "Invalid scheduledAt" }, { status: 400 });
+  }
+
+  if (existing.status === "SCHEDULED" && scheduledAt.getTime() <= Date.now()) {
+    return NextResponse.json({ error: "scheduledAt must be in the future" }, { status: 400 });
+  }
+
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, teacherId: true },
+  });
+
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+
+  if (session.user.role === "TEACHER" && course.teacherId !== session.user.id) {
+    return NextResponse.json({ error: "You can only move classes to your own courses" }, { status: 403 });
+  }
+
+  const updated = await prisma.class.update({
+    where: { id },
+    data: {
+      courseId,
+      teacherId: course.teacherId,
+      title,
+      description,
+      classType: media.value.classType,
+      youtubeVideoId: media.value.youtubeVideoId,
+      googleMeetUrl: media.value.googleMeetUrl,
+      scheduledAt,
+      durationMinutes,
+    },
+  });
+
+  return NextResponse.json({ class: updated });
 }

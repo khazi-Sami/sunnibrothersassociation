@@ -60,6 +60,8 @@ export default async function LiveClassPage({ params }: { params: Promise<{ id: 
         course: { id: klass.course.id, title: klass.course.title },
         canStart: isTeacher && klass.status === "SCHEDULED",
         canEnd: isTeacher && klass.status === "LIVE",
+        canCancel: isTeacher && (klass.status === "SCHEDULED" || klass.status === "LIVE"),
+        canEdit: isTeacher && klass.status !== "ENDED" && klass.status !== "CANCELLED",
         canJoin: isTeacher || (isEnrolled && klass.status === "LIVE"),
         role: isTeacher ? "TEACHER" : "STUDENT",
       }}

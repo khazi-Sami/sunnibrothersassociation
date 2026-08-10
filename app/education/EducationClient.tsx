@@ -1,22 +1,32 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
 type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
 type ClassType = "YOUTUBE_LIVE" | "GOOGLE_MEET";
+type ClassLifecycleAction = "start" | "end" | "cancel";
 type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string }; isEnrolled?: boolean };
 type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: ClassStatus; classType: ClassType; youtubeVideoId: string | null; googleMeetUrl: string | null; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
 type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; youtubeVideoId: string | null; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
 
-const classTypeLabels: Record<ClassType, string> = {
-  YOUTUBE_LIVE: "YouTube Live",
-  GOOGLE_MEET: "Google Meet",
+const classTypeLabels: Record<ClassType, { title: string; platform: string; description: string }> = {
+  YOUTUBE_LIVE: {
+    title: "Live Lecture",
+    platform: "YouTube Live",
+    description: "Best for large classes and lectures.",
+  },
+  GOOGLE_MEET: {
+    title: "Interactive Class",
+    platform: "Google Meet",
+    description: "Best for smaller classes where students need to speak.",
+  },
 };
 
 export default function EducationClient({ role }: { role: Role }) {
+  const canManageClasses = role === "TEACHER" || role === "ADMIN";
   const [courses, setCourses] = useState<CourseItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [recordings, setRecordings] = useState<RecordingItem[]>([]);
@@ -26,14 +36,17 @@ export default function EducationClient({ role }: { role: Role }) {
   const [courseDescription, setCourseDescription] = useState("");
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [classDate, setClassDate] = useState("");
+  const [classTime, setClassTime] = useState("");
   const [classType, setClassType] = useState<ClassType>("YOUTUBE_LIVE");
   const [youtubeLiveUrl, setYoutubeLiveUrl] = useState("");
   const [googleMeetUrl, setGoogleMeetUrl] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [scheduling, setScheduling] = useState(false);
+  const [classActionBusy, setClassActionBusy] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState("");
   const [recordingTitle, setRecordingTitle] = useState("");
   const [recordingDescription, setRecordingDescription] = useState("");
@@ -53,7 +66,6 @@ export default function EducationClient({ role }: { role: Role }) {
         fetch("/api/education/recordings", { cache: "no-store" }),
       ]);
 
-      // Parse each independently so one failure doesn't block the others.
       const coursesJson = coursesRes.ok
         ? ((await coursesRes.json().catch(() => ({}))) as { courses: CourseItem[] })
         : { courses: [] as CourseItem[] };
@@ -65,7 +77,7 @@ export default function EducationClient({ role }: { role: Role }) {
         : { recordings: [] as RecordingItem[] };
 
       if (!coursesRes.ok && !classesRes.ok && !recordingsRes.ok) {
-        throw new Error("Failed to load education data — please check your connection and try again");
+        throw new Error("Failed to load education data. Please check your connection and try again.");
       }
 
       setCourses(coursesJson.courses ?? []);
@@ -83,7 +95,9 @@ export default function EducationClient({ role }: { role: Role }) {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -133,13 +147,18 @@ export default function EducationClient({ role }: { role: Role }) {
     }
   }
 
-  async function handleScheduleClass(e: React.FormEvent) {
+  async function handleSaveClass(e: React.FormEvent) {
     e.preventDefault();
     setScheduling(true);
     setError(null);
     try {
-      const res = await fetch("/api/education/classes", {
-        method: "POST",
+      const scheduledAt = buildScheduledAtIso(classDate, classTime);
+      if (!scheduledAt) {
+        throw new Error("Please enter a valid date and time");
+      }
+
+      const res = await fetch(editingClassId ? `/api/education/classes/${editingClassId}` : "/api/education/classes", {
+        method: editingClassId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
@@ -148,18 +167,40 @@ export default function EducationClient({ role }: { role: Role }) {
           classType,
           youtubeUrl: classType === "YOUTUBE_LIVE" ? youtubeLiveUrl : "",
           googleMeetUrl: classType === "GOOGLE_MEET" ? googleMeetUrl : "",
-          scheduledAt: new Date(scheduledAt).toISOString(),
+          scheduledAt,
           durationMinutes,
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Unable to schedule class");
-      setTitle(""); setDescription(""); setClassType("YOUTUBE_LIVE"); setYoutubeLiveUrl(""); setGoogleMeetUrl(""); setScheduledAt(""); setDurationMinutes(60);
+      if (!res.ok) throw new Error(data?.error ?? "Unable to save class");
+      resetClassForm();
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to schedule class");
+      setError(e instanceof Error ? e.message : "Unable to save class");
     } finally {
       setScheduling(false);
+    }
+  }
+
+  async function handleClassAction(klass: ClassItem, action: ClassLifecycleAction) {
+    if (action === "cancel" && !window.confirm("Cancel this class? Students will no longer see it as joinable.")) {
+      return;
+    }
+
+    setClassActionBusy(`${klass.id}:${action}`);
+    setError(null);
+    try {
+      const res = await fetch(`/api/education/classes/${klass.id}/${action}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `Unable to ${action} class`);
+      if (editingClassId === klass.id) {
+        resetClassForm();
+      }
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Unable to ${action} class`);
+    } finally {
+      setClassActionBusy(null);
     }
   }
 
@@ -185,13 +226,44 @@ export default function EducationClient({ role }: { role: Role }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Unable to add recording");
-      setSelectedClassId(""); setRecordingTitle(""); setRecordingDescription(""); setVideoUrl(""); setRecordingFile(null);
+      setSelectedClassId("");
+      setRecordingTitle("");
+      setRecordingDescription("");
+      setVideoUrl("");
+      setRecordingFile(null);
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to add recording");
     } finally {
       setUploadingRecording(false);
     }
+  }
+
+  function resetClassForm() {
+    setEditingClassId(null);
+    setTitle("");
+    setDescription("");
+    setClassDate("");
+    setClassTime("");
+    setClassType("YOUTUBE_LIVE");
+    setYoutubeLiveUrl("");
+    setGoogleMeetUrl("");
+    setDurationMinutes(60);
+  }
+
+  function beginEditClass(klass: ClassItem) {
+    const parts = toLocalDateTimeParts(klass.scheduledAt);
+    setEditingClassId(klass.id);
+    setSelectedCourseId(klass.course.id);
+    setTitle(klass.title);
+    setDescription(klass.description ?? "");
+    setClassDate(parts.date);
+    setClassTime(parts.time);
+    setClassType(klass.classType);
+    setYoutubeLiveUrl(klass.youtubeVideoId ? `https://www.youtube.com/watch?v=${klass.youtubeVideoId}` : "");
+    setGoogleMeetUrl(klass.googleMeetUrl ?? "");
+    setDurationMinutes(klass.durationMinutes);
+    document.getElementById("create-live-class")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -211,7 +283,7 @@ export default function EducationClient({ role }: { role: Role }) {
           <div style={textPanelStyle}>
             <div style={smallLabelStyle}>Role-Aware Portal</div>
             <h2 style={sectionTitleStyle}>Teaching, scheduling, and recordings in one calmer workflow.</h2>
-            <p style={bodyStyle}>Teachers can schedule classes and upload recordings while students get a cleaner view of upcoming sessions and lesson content.</p>
+            <p style={bodyStyle}>Teachers can publish YouTube Live lectures or Google Meet interactive classes while students get a clean view of upcoming sessions and lesson content.</p>
             <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <span style={chipStyle}>Logged in as: {role}</span>
               <span style={chipStyle}>YouTube Live + Google Meet</span>
@@ -223,7 +295,7 @@ export default function EducationClient({ role }: { role: Role }) {
           </div>
         </div>
 
-        {(role === "TEACHER" || role === "ADMIN") && (
+        {canManageClasses && (
           <div className="edu-form-grid" style={{ display: "grid", gap: 20 }}>
             <form onSubmit={handleCreateCourse} style={panelStyle}>
               <div style={smallLabelStyle}>Courses</div>
@@ -235,72 +307,75 @@ export default function EducationClient({ role }: { role: Role }) {
               </div>
             </form>
 
-            <form onSubmit={handleScheduleClass} style={panelStyle}>
+            <form id="create-live-class" onSubmit={handleSaveClass} style={panelStyle}>
               <div style={smallLabelStyle}>Teacher Dashboard</div>
-              <h2 style={sectionTitleStyle}>Schedule a class.</h2>
+              <h2 style={sectionTitleStyle}>{editingClassId ? "Edit live class." : "Create live class."}</h2>
               <div style={formGridStyle}>
-                <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} required style={inputStyle}>
-                  <option value="">{courses.length === 0 ? "— Create a course first (above) —" : "Select course"}</option>
-                  {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Class title" style={inputStyle} />
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Class description" style={inputStyle} />
-                <label style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Class type</span>
-                  <select value={classType} onChange={(e) => setClassType(e.target.value as ClassType)} required style={inputStyle}>
-                    <option value="YOUTUBE_LIVE">YouTube Live</option>
-                    <option value="GOOGLE_MEET">Google Meet</option>
+                <label style={fieldStyle}>
+                  <span style={fieldLabelStyle}>Course</span>
+                  <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} required style={inputStyle}>
+                    <option value="">{courses.length === 0 ? "Create a course first" : "Select course"}</option>
+                    {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                   </select>
                 </label>
-                {classType === "YOUTUBE_LIVE" ? (
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>YouTube Live URL</span>
-                    <input
-                      value={youtubeLiveUrl}
-                      onChange={(e) => setYoutubeLiveUrl(e.target.value)}
-                      required
-                      placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
-                      style={inputStyle}
-                    />
+
+                <label style={fieldStyle}>
+                  <span style={fieldLabelStyle}>Title</span>
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Quran Tafseer" style={inputStyle} />
+                </label>
+
+                <label style={fieldStyle}>
+                  <span style={fieldLabelStyle}>Description</span>
+                  <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Class description" style={inputStyle} />
+                </label>
+
+                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+                  <label style={fieldStyle}>
+                    <span style={fieldLabelStyle}>Date</span>
+                    <input type="date" value={classDate} min={toDateInputValue(new Date())} onChange={(e) => setClassDate(e.target.value)} required style={inputStyle} />
                   </label>
-                ) : (
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Google Meet URL</span>
-                    <input
-                      value={googleMeetUrl}
-                      onChange={(e) => setGoogleMeetUrl(e.target.value)}
-                      required
-                      placeholder="https://meet.google.com/abc-defg-hij"
-                      style={inputStyle}
-                    />
+                  <label style={fieldStyle}>
+                    <span style={fieldLabelStyle}>Time</span>
+                    <input type="time" value={classTime} onChange={(e) => setClassTime(e.target.value)} required style={inputStyle} />
                   </label>
-                )}
-                <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Date &amp; Time (future only)</span>
-                    <input
-                      type="datetime-local"
-                      value={scheduledAt}
-                      min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
-                      onChange={(e) => setScheduledAt(e.target.value)}
-                      required
-                      style={inputStyle}
-                    />
-                  </label>
-                  <label style={{ display: "grid", gap: 4 }}>
-                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Duration (minutes)</span>
-                    <input
-                      type="number"
-                      min={15}
-                      max={480}
-                      value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                      required
-                      style={inputStyle}
-                    />
+                  <label style={fieldStyle}>
+                    <span style={fieldLabelStyle}>Duration</span>
+                    <input type="number" min={15} max={480} value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} required style={inputStyle} />
                   </label>
                 </div>
-                <button type="submit" disabled={scheduling} style={primaryButton}>{scheduling ? "Scheduling..." : "Schedule Class"}</button>
+
+                <div style={fieldStyle}>
+                  <span style={fieldLabelStyle}>Class Type</span>
+                  <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                    {(["YOUTUBE_LIVE", "GOOGLE_MEET"] as ClassType[]).map((type) => (
+                      <button key={type} type="button" onClick={() => setClassType(type)} style={classTypeOptionStyle(classType === type)}>
+                        <span style={{ display: "block", fontSize: 16, fontWeight: 900, color: "#173127" }}>{classTypeLabels[type].title}</span>
+                        <span style={{ display: "block", marginTop: 4, color: "#1a6045", fontWeight: 800 }}>{classTypeLabels[type].platform}</span>
+                        <span style={{ display: "block", marginTop: 8, color: "#586a62", lineHeight: 1.5 }}>{classTypeLabels[type].description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {classType === "YOUTUBE_LIVE" ? (
+                  <label style={fieldStyle}>
+                    <span style={fieldLabelStyle}>YouTube Live URL</span>
+                    <input value={youtubeLiveUrl} onChange={(e) => setYoutubeLiveUrl(e.target.value)} required placeholder="https://youtube.com/live/VIDEO_ID" style={inputStyle} />
+                    <span style={helpTextStyle}>Create your live stream on YouTube and paste the YouTube Live URL here.</span>
+                    <span style={helpTextStyle}>OBS is optional. You can use OBS with YouTube if you need advanced camera, screen, presentation or branding controls.</span>
+                  </label>
+                ) : (
+                  <label style={fieldStyle}>
+                    <span style={fieldLabelStyle}>Google Meet URL</span>
+                    <input value={googleMeetUrl} onChange={(e) => setGoogleMeetUrl(e.target.value)} required placeholder="https://meet.google.com/abc-defg-hij" style={inputStyle} />
+                    <span style={helpTextStyle}>Create a meeting in Google Meet and paste the meeting URL here.</span>
+                  </label>
+                )}
+
+                <div style={actionRowStyle}>
+                  <button type="submit" disabled={scheduling} style={primaryButton}>{scheduling ? "Saving..." : editingClassId ? "Save Changes" : "Publish Class"}</button>
+                  {editingClassId ? <button type="button" onClick={resetClassForm} style={secondaryButton}>Cancel Edit</button> : null}
+                </div>
               </div>
             </form>
 
@@ -309,7 +384,7 @@ export default function EducationClient({ role }: { role: Role }) {
               <h2 style={sectionTitleStyle}>Upload a lesson.</h2>
               <div style={formGridStyle}>
                 <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} required style={inputStyle}>
-                  <option value="">{teacherClasses.length === 0 ? "— Schedule a class first (above) —" : "Select class"}</option>
+                  <option value="">{teacherClasses.length === 0 ? "Schedule a class first" : "Select class"}</option>
                   {teacherClasses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
                 <input value={recordingTitle} onChange={(e) => setRecordingTitle(e.target.value)} required placeholder="Recording title" style={inputStyle} />
@@ -359,19 +434,45 @@ export default function EducationClient({ role }: { role: Role }) {
             <div style={{ display: "grid", gap: 16, marginTop: 20 }}>
               {classes.map((klass) => (
                 <div key={klass.id} style={contentCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "start" }}>
-                    <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "start" }}>
+                    <div style={{ minWidth: 240, flex: "1 1 360px" }}>
                       <h3 style={{ fontSize: 28, lineHeight: 1.02, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{klass.title}</h3>
                       <p style={{ marginTop: 10, color: "#586a62", lineHeight: 1.7 }}>{klass.description || "No description"}</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                        <span style={softChipStyle}>{formatClassDateTime(klass.scheduledAt)}</span>
+                        <span style={softChipStyle}>{classTypeLabels[klass.classType].title}</span>
+                        <span style={softChipStyle}>{classTypeLabels[klass.classType].platform}</span>
+                        <span style={softChipStyle}>Status: {formatStatus(klass.status)}</span>
+                      </div>
                       <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>
-                        {new Date(klass.scheduledAt).toLocaleString()} - {klass.durationMinutes} mins - {classTypeLabels[klass.classType]} - Course: {klass.course.title} - Teacher: {klass.teacher.name || klass.teacher.email}
+                        {klass.durationMinutes} minutes - Course: {klass.course.title} - Teacher: {klass.teacher.name || klass.teacher.email}
                       </p>
                     </div>
-                    <Link href={`/classes/${klass.id}`} style={primaryButton}>
-                      {role === "TEACHER" || role === "ADMIN"
-                        ? klass.status === "LIVE" ? "Open Live Room" : "Manage Class"
-                        : klass.status === "LIVE" ? "Join Live Class" : "View Details"}
-                    </Link>
+                    <div style={actionRowStyle}>
+                      <Link href={`/classes/${klass.id}`} style={primaryButton}>
+                        {canManageClasses ? getManagerOpenLabel(klass.classType) : klass.status === "LIVE" ? "Join Live Class" : "View Details"}
+                      </Link>
+                      {canManageClasses ? (
+                        <>
+                          <button type="button" onClick={() => beginEditClass(klass)} disabled={klass.status === "ENDED" || klass.status === "CANCELLED"} style={secondaryButton}>Edit</button>
+                          {klass.status === "SCHEDULED" ? (
+                            <button type="button" onClick={() => handleClassAction(klass, "start")} disabled={classActionBusy === `${klass.id}:start`} style={secondaryButton}>
+                              {classActionBusy === `${klass.id}:start` ? "Starting..." : "Start Class"}
+                            </button>
+                          ) : null}
+                          {klass.status === "LIVE" ? (
+                            <button type="button" onClick={() => handleClassAction(klass, "end")} disabled={classActionBusy === `${klass.id}:end`} style={secondaryButton}>
+                              {classActionBusy === `${klass.id}:end` ? "Ending..." : "End Class"}
+                            </button>
+                          ) : null}
+                          {(klass.status === "SCHEDULED" || klass.status === "LIVE") ? (
+                            <button type="button" onClick={() => handleClassAction(klass, "cancel")} disabled={classActionBusy === `${klass.id}:cancel`} style={dangerButton}>
+                              {classActionBusy === `${klass.id}:cancel` ? "Cancelling..." : "Cancel"}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -426,6 +527,53 @@ export default function EducationClient({ role }: { role: Role }) {
   );
 }
 
+function buildScheduledAtIso(dateValue: string, timeValue: string): string | null {
+  if (!dateValue || !timeValue) return null;
+  const scheduledAt = new Date(`${dateValue}T${timeValue}`);
+  return Number.isNaN(scheduledAt.getTime()) ? null : scheduledAt.toISOString();
+}
+
+function toLocalDateTimeParts(value: string): { date: string; time: string } {
+  const date = new Date(value);
+  return {
+    date: toDateInputValue(date),
+    time: `${pad2(date.getHours())}:${pad2(date.getMinutes())}`,
+  };
+}
+
+function toDateInputValue(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatClassDateTime(value: string): string {
+  const date = new Date(value);
+  return date.toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+}
+
+function formatStatus(status: ClassStatus): string {
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
+
+function getManagerOpenLabel(classType: ClassType): string {
+  return classType === "GOOGLE_MEET" ? "Open Meeting" : "Open Class";
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function classTypeOptionStyle(active: boolean): React.CSSProperties {
+  return {
+    textAlign: "left",
+    borderRadius: 18,
+    border: active ? "1px solid rgba(26,96,69,0.55)" : "1px solid rgba(20,42,31,0.10)",
+    background: active ? "rgba(26,96,69,0.09)" : "rgba(255,255,255,0.88)",
+    padding: "16px 16px",
+    cursor: "pointer",
+    boxShadow: active ? "0 12px 30px rgba(20,40,30,0.10)" : "none",
+  };
+}
+
 const pageStyle: React.CSSProperties = { minHeight: "100vh", padding: "24px 16px 84px", background: "linear-gradient(180deg, #f5f7f4 0%, #eef2ef 100%)" };
 const shellStyle: React.CSSProperties = { maxWidth: 1280, margin: "0 auto", display: "grid", gap: 28 };
 const centerHeroStyle: React.CSSProperties = { textAlign: "center", padding: "38px 0 6px" };
@@ -440,9 +588,16 @@ const sectionTitleStyle: React.CSSProperties = { marginTop: 14, fontSize: "clamp
 const bodyStyle: React.CSSProperties = { marginTop: 18, color: "#556860", fontSize: 17, lineHeight: 1.8 };
 const panelStyle: React.CSSProperties = { borderRadius: 36, padding: "34px 30px", background: "rgba(255,255,255,0.84)", border: "1px solid rgba(20,42,31,0.08)", boxShadow: "0 22px 70px rgba(20,40,30,0.06)" };
 const formGridStyle: React.CSSProperties = { display: "grid", gap: 14, marginTop: 22 };
+const fieldStyle: React.CSSProperties = { display: "grid", gap: 6 };
+const fieldLabelStyle: React.CSSProperties = { fontSize: 13, color: "#475569", fontWeight: 700 };
 const inputStyle: React.CSSProperties = { padding: "14px 16px", borderRadius: 18, border: "1px solid rgba(20,42,31,0.10)", background: "rgba(255,255,255,0.94)", fontSize: 16, width: "100%" };
+const helpTextStyle: React.CSSProperties = { color: "#66776f", fontSize: 13, lineHeight: 1.6 };
 const chipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
+const softChipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
+const actionRowStyle: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" };
 const primaryButton: React.CSSProperties = { width: "fit-content", border: "none", cursor: "pointer", textDecoration: "none", background: "linear-gradient(180deg, #174d37, #123b2c)", color: "white", borderRadius: 999, padding: "14px 20px", fontWeight: 800, fontSize: 15 };
+const secondaryButton: React.CSSProperties = { width: "fit-content", border: "1px solid rgba(20,42,31,0.14)", cursor: "pointer", textDecoration: "none", background: "rgba(255,255,255,0.9)", color: "#174d37", borderRadius: 999, padding: "12px 16px", fontWeight: 800, fontSize: 14 };
+const dangerButton: React.CSSProperties = { width: "fit-content", border: "1px solid rgba(153,27,27,0.18)", cursor: "pointer", textDecoration: "none", background: "rgba(153,27,27,0.08)", color: "#991b1b", borderRadius: 999, padding: "12px 16px", fontWeight: 800, fontSize: 14 };
 const mutedStyle: React.CSSProperties = { marginTop: 18, color: "#66776f", lineHeight: 1.7 };
 const contentCardStyle: React.CSSProperties = { borderRadius: 26, padding: "22px 20px", background: "rgba(255,255,255,0.78)", border: "1px solid rgba(20,42,31,0.08)" };
 const errorStyle: React.CSSProperties = { color: "#b42318", background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.16)", borderRadius: 16, padding: "12px 14px" };

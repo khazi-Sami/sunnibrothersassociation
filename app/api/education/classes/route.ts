@@ -87,12 +87,12 @@ export async function POST(req: Request) {
   const durationMinutes = Number(body.durationMinutes ?? 60);
   const media = parseClassMediaInput(body.classType, body.youtubeUrl, body.googleMeetUrl);
 
-  if (!title || !courseId || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15) {
+  if (!title || !courseId || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15 || durationMinutes > 480) {
     return NextResponse.json({ error: "title, courseId, scheduledAt, and valid durationMinutes are required" }, { status: 400 });
   }
 
   if (!media.ok) {
-    return NextResponse.json({ error: media.error }, { status: 422 });
+    return NextResponse.json({ error: media.error }, { status: 400 });
   }
 
   const scheduledAt = new Date(scheduledAtRaw);
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
   }
 
   if (scheduledAt.getTime() <= Date.now()) {
-    return NextResponse.json({ error: "scheduledAt must be in the future" }, { status: 422 });
+    return NextResponse.json({ error: "scheduledAt must be in the future" }, { status: 400 });
   }
 
   const course = await prisma.course.findUnique({

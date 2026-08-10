@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
-import { getStoredClassMediaError } from "@/lib/education/videoLinks";
 
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
@@ -14,12 +12,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   }
 
   if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Only teachers can start classes" }, { status: 403 });
+    return NextResponse.json({ error: "Only teachers can cancel classes" }, { status: 403 });
   }
 
   const { id } = await params;
-  await autoExpireClassIfNeeded(id);
-
   const klass = await prisma.class.findUnique({ where: { id } });
   if (!klass) {
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
@@ -30,21 +26,12 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   }
 
   if (klass.status === "ENDED" || klass.status === "CANCELLED") {
-    return NextResponse.json({ error: "Cannot start an ended or cancelled class" }, { status: 400 });
-  }
-
-  const mediaError = getStoredClassMediaError({
-    classType: klass.classType,
-    youtubeVideoId: klass.youtubeVideoId,
-    googleMeetUrl: klass.googleMeetUrl,
-  });
-  if (mediaError) {
-    return NextResponse.json({ error: mediaError }, { status: 400 });
+    return NextResponse.json({ error: "Cannot cancel an ended or already cancelled class" }, { status: 400 });
   }
 
   const updated = await prisma.class.update({
     where: { id },
-    data: { status: "LIVE" },
+    data: { status: "CANCELLED" },
   });
 
   return NextResponse.json({ class: updated });

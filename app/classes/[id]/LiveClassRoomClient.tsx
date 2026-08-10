@@ -19,6 +19,8 @@ type ClassPayload = {
   course: { id: string; title: string };
   canStart: boolean;
   canEnd: boolean;
+  canCancel: boolean;
+  canEdit: boolean;
   canJoin: boolean;
   role: "TEACHER" | "STUDENT";
 };
@@ -63,7 +65,11 @@ export default function LiveClassRoomClient({ initialClass }: { initialClass: Cl
     return () => window.clearInterval(interval);
   }, [isTeacher, klass.status, refreshClass]);
 
-  async function callLifecycle(action: "start" | "end") {
+  async function callLifecycle(action: "start" | "end" | "cancel") {
+    if (action === "cancel" && !window.confirm("Cancel this class? Students will no longer see it as joinable.")) {
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -105,6 +111,11 @@ export default function LiveClassRoomClient({ initialClass }: { initialClass: Cl
           {klass.canEnd ? (
             <button onClick={() => callLifecycle("end")} disabled={busy} style={{ ...buttonStyle, background: "#991b1b" }}>
               {busy ? "Ending..." : "End Class"}
+            </button>
+          ) : null}
+          {klass.canCancel ? (
+            <button onClick={() => callLifecycle("cancel")} disabled={busy} style={{ ...buttonStyle, background: "#7f1d1d" }}>
+              {busy ? "Cancelling..." : "Cancel Class"}
             </button>
           ) : null}
         </div>
