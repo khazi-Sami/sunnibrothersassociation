@@ -6,8 +6,8 @@ export function computeClassStatus(
   durationMinutes: number,
   storedStatus: ClassStatus
 ): ClassStatus {
-  if (storedStatus === "ENDED") {
-    return "ENDED";
+  if (storedStatus === "ENDED" || storedStatus === "CANCELLED") {
+    return storedStatus;
   }
 
   const endAt = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
@@ -35,8 +35,4 @@ export async function autoExpireClassIfNeeded(classId: string): Promise<void> {
       data: { status: "ENDED" },
     });
   }
-}
-
-export function generateRoomName(courseId: string): string {
-  return `${courseId}-${Date.now()}`.replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 120);
 }

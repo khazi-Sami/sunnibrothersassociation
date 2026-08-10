@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
+import { getStoredClassMediaError } from "@/lib/education/videoLinks";
 
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
@@ -28,8 +29,17 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (klass.status === "ENDED") {
-    return NextResponse.json({ error: "Cannot start an ended class" }, { status: 400 });
+  if (klass.status === "ENDED" || klass.status === "CANCELLED") {
+    return NextResponse.json({ error: "Cannot start an ended or cancelled class" }, { status: 400 });
+  }
+
+  const mediaError = getStoredClassMediaError({
+    classType: klass.classType,
+    youtubeVideoId: klass.youtubeVideoId,
+    googleMeetUrl: klass.googleMeetUrl,
+  });
+  if (mediaError) {
+    return NextResponse.json({ error: mediaError }, { status: 422 });
   }
 
   const updated = await prisma.class.update({

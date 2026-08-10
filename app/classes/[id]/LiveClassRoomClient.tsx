@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import JitsiMeetFrame from "@/app/education/components/JitsiMeetFrame";
+
+type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
+type ClassType = "YOUTUBE_LIVE" | "GOOGLE_MEET";
 
 type ClassPayload = {
   id: string;
   title: string;
   description: string | null;
-  roomName: string;
-  status: "SCHEDULED" | "LIVE" | "ENDED";
+  classType: ClassType;
+  youtubeVideoId: string | null;
+  googleMeetUrl: string | null;
+  status: ClassStatus;
   scheduledAt: string;
   durationMinutes: number;
   teacher: { id: string; name: string | null; email: string };
@@ -19,27 +23,22 @@ type ClassPayload = {
   role: "TEACHER" | "STUDENT";
 };
 
-export default function LiveClassRoomClient({
-  initialClass,
-  displayName,
-}: {
-  initialClass: ClassPayload;
-  displayName: string;
-}) {
+const classTypeLabels: Record<ClassType, string> = {
+  YOUTUBE_LIVE: "YouTube Live",
+  GOOGLE_MEET: "Google Meet",
+};
+
+export default function LiveClassRoomClient({ initialClass }: { initialClass: ClassPayload }) {
   const [klass, setKlass] = useState(initialClass);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [jitsiJwt, setJitsiJwt] = useState<string | null>(null);
 
   const isTeacher = klass.role === "TEACHER";
-
-  const canRenderJitsi = useMemo(() => {
-    if (isTeacher) {
-      return klass.status === "LIVE";
-    }
-    return klass.canJoin && klass.status === "LIVE";
-  }, [klass, isTeacher]);
+  const youtubeEmbedUrl = useMemo(() => {
+    if (klass.classType !== "YOUTUBE_LIVE" || !klass.youtubeVideoId) return null;
+    return `https://www.youtube.com/embed/${encodeURIComponent(klass.youtubeVideoId)}?autoplay=1&rel=0`;
+  }, [klass.classType, klass.youtubeVideoId]);
 
   const refreshClass = useCallback(async () => {
     const refresh = await fetch(`/api/education/classes/${klass.id}`, { cache: "no-store" });
@@ -51,7 +50,7 @@ export default function LiveClassRoomClient({
   }, [klass.id]);
 
   useEffect(() => {
-    const shouldPoll = !isTeacher && klass.status !== "ENDED";
+    const shouldPoll = !isTeacher && klass.status !== "ENDED" && klass.status !== "CANCELLED";
     if (!shouldPoll) return;
 
     const interval = window.setInterval(() => {
@@ -63,14 +62,6 @@ export default function LiveClassRoomClient({
 
     return () => window.clearInterval(interval);
   }, [isTeacher, klass.status, refreshClass]);
-
-  useEffect(() => {
-    if (klass.status !== "LIVE") return;
-    fetch(`/api/education/classes/${klass.id}/jitsi-token`, { method: "POST" })
-      .then((r) => r.json())
-      .then((data: { jwt?: string | null }) => setJitsiJwt(data.jwt ?? null))
-      .catch(() => undefined);
-  }, [klass.id, klass.status]);
 
   async function callLifecycle(action: "start" | "end") {
     setBusy(true);
@@ -95,10 +86,11 @@ export default function LiveClassRoomClient({
         <h1 style={{ fontSize: 28, fontWeight: 700 }}>{klass.title}</h1>
         <p style={{ color: "#475569", marginTop: 8 }}>{klass.description || "No class description"}</p>
         <p style={{ color: "#64748b", marginTop: 10 }}>
-          Course: {klass.course.title} • Status: {klass.status} • Starts: {new Date(klass.scheduledAt).toLocaleString()}
+          Course: {klass.course.title} - Status: {klass.status} - Type: {classTypeLabels[klass.classType]} - Starts:{" "}
+          {new Date(klass.scheduledAt).toLocaleString()}
         </p>
         <p style={{ color: "#64748b", marginTop: 6 }}>
-          Teacher: {klass.teacher.name || klass.teacher.email} • Duration: {klass.durationMinutes} minutes
+          Teacher: {klass.teacher.name || klass.teacher.email} - Duration: {klass.durationMinutes} minutes
         </p>
         {!isTeacher && refreshing ? <p style={{ color: "#64748b", marginTop: 8 }}>Checking class status...</p> : null}
 
@@ -118,16 +110,63 @@ export default function LiveClassRoomClient({
         </div>
       </section>
 
-      {canRenderJitsi ? (
-        <JitsiMeetFrame roomName={klass.roomName} displayName={displayName} isTeacher={isTeacher} jwt={jitsiJwt} classId={klass.id} />
+      {klass.status === "LIVE" ? (
+        renderLiveSurface(klass, youtubeEmbedUrl)
       ) : (
         <section style={{ border: "1px dashed #cbd5e1", borderRadius: 16, padding: 22, color: "#475569", background: "#f8fafc" }}>
-          {isTeacher
-            ? "Start the class to launch the Jitsi room."
-            : "This class is not live yet. You can join once the teacher starts it."}
+          {getWaitingMessage(klass, isTeacher)}
         </section>
       )}
     </main>
+  );
+}
+
+function renderLiveSurface(klass: ClassPayload, youtubeEmbedUrl: string | null) {
+  if (klass.classType === "YOUTUBE_LIVE") {
+    if (!youtubeEmbedUrl) {
+      return <MissingMediaMessage message="This YouTube Live class is missing a valid YouTube video ID." />;
+    }
+
+    return (
+      <section style={{ borderRadius: 18, overflow: "hidden", background: "#0f172a", minHeight: 620 }}>
+        <iframe
+          src={youtubeEmbedUrl}
+          title={klass.title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          style={{ width: "100%", minHeight: 620, border: 0, display: "block" }}
+        />
+      </section>
+    );
+  }
+
+  if (!klass.googleMeetUrl) {
+    return <MissingMediaMessage message="This Google Meet class is missing a valid Meet URL." />;
+  }
+
+  return (
+    <section style={{ border: "1px solid #d8dee8", borderRadius: 18, padding: 24, background: "#fff", display: "grid", gap: 12 }}>
+      <h2 style={{ fontSize: 24, fontWeight: 700, color: "#0f172a" }}>Google Meet</h2>
+      <p style={{ color: "#475569", lineHeight: 1.7, margin: 0 }}>The class is live. Open the Meet room in a new tab to join.</p>
+      <a href={klass.googleMeetUrl} target="_blank" rel="noreferrer" style={{ ...buttonStyle, width: "fit-content", textDecoration: "none" }}>
+        Open Google Meet
+      </a>
+    </section>
+  );
+}
+
+function getWaitingMessage(klass: ClassPayload, isTeacher: boolean): string {
+  if (klass.status === "ENDED") return "This class has ended.";
+  if (klass.status === "CANCELLED") return "This class has been cancelled.";
+  if (isTeacher) return `Start the class to make the ${classTypeLabels[klass.classType]} session available.`;
+  return "This class is not live yet. You can join once the teacher starts it.";
+}
+
+function MissingMediaMessage({ message }: { message: string }) {
+  return (
+    <section style={{ border: "1px solid #fecaca", borderRadius: 18, background: "#fff5f5", color: "#7f1d1d", padding: 16 }}>
+      {message}
+    </section>
   );
 }
 

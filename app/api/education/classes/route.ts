@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
-import { autoExpireClassIfNeeded, generateRoomName } from "@/lib/education/liveClasses";
+import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
+import { parseClassMediaInput } from "@/lib/education/videoLinks";
 
 export async function GET() {
   const prisma = getPrisma();
@@ -84,9 +85,14 @@ export async function POST(req: Request) {
   const description = String(body.description ?? "").trim() || null;
   const scheduledAtRaw = String(body.scheduledAt ?? "").trim();
   const durationMinutes = Number(body.durationMinutes ?? 60);
+  const media = parseClassMediaInput(body.classType, body.youtubeUrl, body.googleMeetUrl);
 
   if (!title || !courseId || !scheduledAtRaw || Number.isNaN(durationMinutes) || durationMinutes < 15) {
     return NextResponse.json({ error: "title, courseId, scheduledAt, and valid durationMinutes are required" }, { status: 400 });
+  }
+
+  if (!media.ok) {
+    return NextResponse.json({ error: media.error }, { status: 422 });
   }
 
   const scheduledAt = new Date(scheduledAtRaw);
@@ -116,7 +122,9 @@ export async function POST(req: Request) {
       courseId,
       title,
       description,
-      roomName: generateRoomName(courseId),
+      classType: media.value.classType,
+      youtubeVideoId: media.value.youtubeVideoId,
+      googleMeetUrl: media.value.googleMeetUrl,
       scheduledAt,
       durationMinutes,
       teacherId: session.user.role === "ADMIN" ? course.teacherId : session.user.id,

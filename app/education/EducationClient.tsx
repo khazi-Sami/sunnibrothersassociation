@@ -5,9 +5,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
+type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
+type ClassType = "YOUTUBE_LIVE" | "GOOGLE_MEET";
 type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string }; isEnrolled?: boolean };
-type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: "SCHEDULED" | "LIVE" | "ENDED"; roomName: string; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
-type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
+type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: ClassStatus; classType: ClassType; youtubeVideoId: string | null; googleMeetUrl: string | null; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
+type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; youtubeVideoId: string | null; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
+
+const classTypeLabels: Record<ClassType, string> = {
+  YOUTUBE_LIVE: "YouTube Live",
+  GOOGLE_MEET: "Google Meet",
+};
 
 export default function EducationClient({ role }: { role: Role }) {
   const [courses, setCourses] = useState<CourseItem[]>([]);
@@ -21,6 +28,9 @@ export default function EducationClient({ role }: { role: Role }) {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [classType, setClassType] = useState<ClassType>("YOUTUBE_LIVE");
+  const [youtubeLiveUrl, setYoutubeLiveUrl] = useState("");
+  const [googleMeetUrl, setGoogleMeetUrl] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [scheduling, setScheduling] = useState(false);
@@ -135,13 +145,16 @@ export default function EducationClient({ role }: { role: Role }) {
           title,
           courseId: selectedCourseId,
           description,
+          classType,
+          youtubeUrl: classType === "YOUTUBE_LIVE" ? youtubeLiveUrl : "",
+          googleMeetUrl: classType === "GOOGLE_MEET" ? googleMeetUrl : "",
           scheduledAt: new Date(scheduledAt).toISOString(),
           durationMinutes,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Unable to schedule class");
-      setTitle(""); setDescription(""); setScheduledAt(""); setDurationMinutes(60);
+      setTitle(""); setDescription(""); setClassType("YOUTUBE_LIVE"); setYoutubeLiveUrl(""); setGoogleMeetUrl(""); setScheduledAt(""); setDurationMinutes(60);
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to schedule class");
@@ -164,7 +177,7 @@ export default function EducationClient({ role }: { role: Role }) {
         if (!uploadRes.ok) throw new Error(uploadData?.error ?? "File upload failed");
         finalVideoUrl = uploadData.url;
       }
-      if (!finalVideoUrl) throw new Error("Please upload a file or provide a Google Drive/video link");
+      if (!finalVideoUrl) throw new Error("Please upload a file or provide a video/YouTube link");
       const res = await fetch("/api/education/recordings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +214,7 @@ export default function EducationClient({ role }: { role: Role }) {
             <p style={bodyStyle}>Teachers can schedule classes and upload recordings while students get a cleaner view of upcoming sessions and lesson content.</p>
             <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <span style={chipStyle}>Logged in as: {role}</span>
-              <span style={chipStyle}>Jitsi Live Classes</span>
+              <span style={chipStyle}>YouTube Live + Google Meet</span>
             </div>
             {error ? <div style={{ ...errorStyle, marginTop: 18 }}>{error}</div> : null}
           </div>
@@ -232,6 +245,36 @@ export default function EducationClient({ role }: { role: Role }) {
                 </select>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Class title" style={inputStyle} />
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Class description" style={inputStyle} />
+                <label style={{ display: "grid", gap: 4 }}>
+                  <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Class type</span>
+                  <select value={classType} onChange={(e) => setClassType(e.target.value as ClassType)} required style={inputStyle}>
+                    <option value="YOUTUBE_LIVE">YouTube Live</option>
+                    <option value="GOOGLE_MEET">Google Meet</option>
+                  </select>
+                </label>
+                {classType === "YOUTUBE_LIVE" ? (
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>YouTube Live URL</span>
+                    <input
+                      value={youtubeLiveUrl}
+                      onChange={(e) => setYoutubeLiveUrl(e.target.value)}
+                      required
+                      placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
+                      style={inputStyle}
+                    />
+                  </label>
+                ) : (
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Google Meet URL</span>
+                    <input
+                      value={googleMeetUrl}
+                      onChange={(e) => setGoogleMeetUrl(e.target.value)}
+                      required
+                      placeholder="https://meet.google.com/abc-defg-hij"
+                      style={inputStyle}
+                    />
+                  </label>
+                )}
                 <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                   <label style={{ display: "grid", gap: 4 }}>
                     <span style={{ fontSize: 13, color: "#475569", fontWeight: 600 }}>Date &amp; Time (future only)</span>
@@ -271,7 +314,7 @@ export default function EducationClient({ role }: { role: Role }) {
                 </select>
                 <input value={recordingTitle} onChange={(e) => setRecordingTitle(e.target.value)} required placeholder="Recording title" style={inputStyle} />
                 <textarea rows={2} value={recordingDescription} onChange={(e) => setRecordingDescription(e.target.value)} placeholder="Description" style={inputStyle} />
-                <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="Google Drive / external video URL" style={inputStyle} />
+                <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="YouTube / Google Drive / external video URL" style={inputStyle} />
                 <input type="file" accept="video/*" onChange={(e) => setRecordingFile(e.target.files?.[0] ?? null)} style={inputStyle} />
                 <button type="submit" disabled={uploadingRecording} style={primaryButton}>{uploadingRecording ? "Saving..." : "Save Recording"}</button>
               </div>
@@ -321,7 +364,7 @@ export default function EducationClient({ role }: { role: Role }) {
                       <h3 style={{ fontSize: 28, lineHeight: 1.02, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{klass.title}</h3>
                       <p style={{ marginTop: 10, color: "#586a62", lineHeight: 1.7 }}>{klass.description || "No description"}</p>
                       <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>
-                        {new Date(klass.scheduledAt).toLocaleString()} • {klass.durationMinutes} mins • Course: {klass.course.title} • Teacher: {klass.teacher.name || klass.teacher.email}
+                        {new Date(klass.scheduledAt).toLocaleString()} - {klass.durationMinutes} mins - {classTypeLabels[klass.classType]} - Course: {klass.course.title} - Teacher: {klass.teacher.name || klass.teacher.email}
                       </p>
                     </div>
                     <Link href={`/classes/${klass.id}`} style={primaryButton}>
@@ -344,7 +387,15 @@ export default function EducationClient({ role }: { role: Role }) {
               {recordings.map((rec) => (
                 <article key={rec.id} style={contentCardStyle}>
                   <div style={{ aspectRatio: "16 / 9", overflow: "hidden", borderRadius: 18, background: "#eef2ef" }}>
-                    {rec.videoUrl.match(/\.(mp4|webm|ogg)$/i) || rec.videoUrl.startsWith("/uploads/") ? (
+                    {rec.youtubeVideoId ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${encodeURIComponent(rec.youtubeVideoId)}`}
+                        title={rec.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        style={{ width: "100%", height: "100%", border: 0, display: "block" }}
+                      />
+                    ) : rec.videoUrl.match(/\.(mp4|webm|ogg)$/i) || rec.videoUrl.startsWith("/uploads/") ? (
                       <video src={rec.videoUrl} controls style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", color: "#7a8a83" }}>External recording link</div>

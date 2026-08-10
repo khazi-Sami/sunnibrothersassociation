@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -32,6 +32,12 @@ enum ClassStatus {
   SCHEDULED
   LIVE
   ENDED
+  CANCELLED
+}
+
+enum ClassType {
+  YOUTUBE_LIVE
+  GOOGLE_MEET
 }
 
 model Course {
@@ -67,7 +73,9 @@ model Class {
   course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title           String
   description     String?
-  roomName        String      @unique
+  classType       ClassType   @default(YOUTUBE_LIVE)
+  youtubeVideoId  String?
+  googleMeetUrl   String?
   scheduledAt     DateTime
   durationMinutes Int         @default(60)
   status          ClassStatus @default(SCHEDULED)
@@ -83,16 +91,17 @@ model Class {
 }
 
 model Recording {
-  id          String   @id @default(cuid())
-  classId     String
-  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  videoUrl    String
-  thumbnailUrl String?
-  createdById String
-  createdBy   User     @relation("UserRecordings", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  classId        String
+  class          Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  videoUrl       String
+  youtubeVideoId String?
+  thumbnailUrl   String?
+  createdById    String
+  createdBy      User     @relation("UserRecordings", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 
   @@index([classId])
   @@index([createdById])

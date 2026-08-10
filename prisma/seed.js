@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { PrismaClient, Role } = require("@prisma/client");
+const { PrismaClient, ClassType, Role } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 
 const prisma = new PrismaClient();
@@ -53,10 +53,13 @@ async function main() {
   const startAt = new Date(Date.now() + 30 * 60 * 1000);
 
   await prisma.class.upsert({
-    where: { roomName: `seed-${course.id}-room` },
+    where: { id: "demo-live-intro-session" },
     update: {
       title: "Live Intro Session",
-      description: "Demo class for Jitsi flow testing.",
+      description: "Demo class for Google Meet flow testing.",
+      classType: ClassType.GOOGLE_MEET,
+      youtubeVideoId: null,
+      googleMeetUrl: "https://meet.google.com/abc-defg-hij",
       scheduledAt: startAt,
       durationMinutes: 60,
       status: "SCHEDULED",
@@ -64,9 +67,12 @@ async function main() {
       courseId: course.id,
     },
     create: {
+      id: "demo-live-intro-session",
       title: "Live Intro Session",
-      description: "Demo class for Jitsi flow testing.",
-      roomName: `seed-${course.id}-room`,
+      description: "Demo class for Google Meet flow testing.",
+      classType: ClassType.GOOGLE_MEET,
+      youtubeVideoId: null,
+      googleMeetUrl: "https://meet.google.com/abc-defg-hij",
       scheduledAt: startAt,
       durationMinutes: 60,
       status: "SCHEDULED",

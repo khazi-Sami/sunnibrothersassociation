@@ -46,12 +46,13 @@ export default async function LiveClassPage({ params }: { params: Promise<{ id: 
 
   return (
     <LiveClassRoomClient
-      displayName={session.user.name || session.user.email || "Guest"}
       initialClass={{
         id: klass.id,
         title: klass.title,
         description: klass.description,
-        roomName: klass.roomName,
+        classType: klass.classType,
+        youtubeVideoId: klass.youtubeVideoId,
+        googleMeetUrl: klass.googleMeetUrl,
         status: klass.status,
         scheduledAt: klass.scheduledAt.toISOString(),
         durationMinutes: klass.durationMinutes,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPrisma } from "@/lib/prisma";
+import { extractYouTubeVideoId, isYouTubeUrl, normalizeYouTubeWatchUrl } from "@/lib/education/videoLinks";
 
 export async function GET() {
   const prisma = getPrisma();
@@ -50,9 +51,18 @@ export async function POST(req: Request) {
   const description = String(body.description ?? "").trim() || null;
   const videoUrl = String(body.videoUrl ?? "").trim();
   const thumbnailUrl = String(body.thumbnailUrl ?? "").trim() || null;
+  const youtubeVideoId = extractYouTubeVideoId(videoUrl);
 
   if (!classId || !title || !videoUrl) {
     return NextResponse.json({ error: "classId, title, and videoUrl are required" }, { status: 400 });
+  }
+
+  if (/<\s*iframe/i.test(videoUrl)) {
+    return NextResponse.json({ error: "Recording videoUrl must be a URL, not iframe HTML" }, { status: 422 });
+  }
+
+  if (isYouTubeUrl(videoUrl) && !youtubeVideoId) {
+    return NextResponse.json({ error: "Unsupported YouTube recording URL" }, { status: 422 });
   }
 
   const klass = await prisma.class.findUnique({ where: { id: classId } });
@@ -69,7 +79,8 @@ export async function POST(req: Request) {
       classId,
       title,
       description,
-      videoUrl,
+      videoUrl: youtubeVideoId ? normalizeYouTubeWatchUrl(youtubeVideoId) : videoUrl,
+      youtubeVideoId,
       thumbnailUrl,
       createdById: session.user.id,
     },
