@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node scripts/dev-start.js",
     "dev:cleanup": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$port3000 = (Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue).OwningProcess; if ($port3000) { Stop-Process -Id $port3000 -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 600 }; if (Test-Path 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\.next\\\\dev') { Remove-Item 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\.next\\\\dev' -Recurse -Force -ErrorAction SilentlyContinue }; robocopy 'D:\\\\MyProjects\\\\sunnibrothersassociation\\\\app' 'C:\\\\MyProjects\\\\sunnibrothersassociation\\\\app' /MIR /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null\"",
+    "postinstall": "prisma generate",
     "build": "next build",
     "start": "next start",
     "test:education": "node tests/education-video-links.test.cjs",
