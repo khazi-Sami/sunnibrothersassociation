@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
 import { getPrisma } from "@/lib/prisma";
+import ClassQuestionsPanel, { type ClassQuestionItem } from "./ClassQuestionsPanel";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -43,6 +44,10 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
         take: 1,
         select: { id: true, title: true, youtubeVideoId: true, videoUrl: true },
       },
+      questions: {
+        orderBy: { createdAt: "asc" },
+        include: { student: { select: { id: true, name: true, email: true } } },
+      },
     },
   });
 
@@ -71,6 +76,15 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
   const latestRecording = klass.recordings[0] ?? null;
   const teacherName = klass.teacher.name || klass.teacher.email;
   const type = classTypeLabel[klass.classType];
+  const canManageQuestions = isAdmin || isAssignedTeacher;
+  const initialQuestions: ClassQuestionItem[] = klass.questions.map((question) => ({
+    id: question.id,
+    question: question.question,
+    answered: question.answered,
+    answeredAt: question.answeredAt?.toISOString() ?? null,
+    createdAt: question.createdAt.toISOString(),
+    student: question.student,
+  }));
 
   return (
     <main style={pageStyle}>
@@ -117,11 +131,6 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
             ) : (
               <p style={errorTextStyle}>This YouTube class is missing a valid video ID.</p>
             )}
-            <section style={questionsStyle}>
-              <h2 style={sectionHeadingStyle}>Questions</h2>
-              <p style={mutedStyle}>Coming soon</p>
-              <button type="button" disabled style={disabledButtonStyle}>Ask Question</button>
-            </section>
           </section>
         ) : null}
 
@@ -144,6 +153,16 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
               Attendance here records that the student opened the meeting through sunnibrothers.com. It does not prove how long the student remained inside Google Meet.
             </p>
           </section>
+        ) : null}
+
+        {klass.status === "LIVE" ? (
+          <ClassQuestionsPanel
+            classId={klass.id}
+            initialQuestions={initialQuestions}
+            canAskQuestion={isEnrolledStudent}
+            canManageQuestions={canManageQuestions}
+            isClassLive={klass.status === "LIVE"}
+          />
         ) : null}
 
         {klass.status === "ENDED" ? (
@@ -227,8 +246,6 @@ const liveBadgeStyle: CSSProperties = { display: "inline-flex", alignItems: "cen
 const liveDotStyle: CSSProperties = { width: 8, height: 8, borderRadius: 999, background: "#dc2626", display: "inline-block" };
 const playerWrapStyle: CSSProperties = { position: "relative", width: "100%", aspectRatio: "16 / 9", marginTop: 18, borderRadius: 18, overflow: "hidden", background: "#0f172a" };
 const iframeStyle: CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 };
-const questionsStyle: CSSProperties = { marginTop: 22, borderTop: "1px solid rgba(20,42,31,0.08)", paddingTop: 18, display: "grid", gap: 10 };
 const primaryButtonStyle: CSSProperties = { width: "fit-content", border: "none", cursor: "pointer", textDecoration: "none", background: "linear-gradient(180deg, #174d37, #123b2c)", color: "white", borderRadius: 999, padding: "13px 18px", fontWeight: 800, fontSize: 15, display: "inline-flex" };
 const secondaryButtonStyle: CSSProperties = { width: "fit-content", border: "1px solid rgba(20,42,31,0.14)", cursor: "pointer", textDecoration: "none", background: "rgba(255,255,255,0.9)", color: "#174d37", borderRadius: 999, padding: "12px 16px", fontWeight: 800, fontSize: 14 };
-const disabledButtonStyle: CSSProperties = { width: "fit-content", border: "none", borderRadius: 999, padding: "12px 16px", fontWeight: 800, color: "#94a3b8", background: "#e2e8f0", cursor: "not-allowed" };
 const errorTextStyle: CSSProperties = { color: "#991b1b", background: "rgba(153,27,27,0.08)", borderRadius: 14, padding: "12px 14px", marginTop: 16 };

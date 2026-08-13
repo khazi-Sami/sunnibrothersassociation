@@ -25,6 +25,7 @@ model User {
   classesTaught      Class[]           @relation("TeacherClasses")
   recordingsUploaded Recording[]       @relation("UserRecordings")
   classAttendances   ClassAttendance[] @relation("StudentClassAttendance")
+  questionsAsked     ClassQuestion[]   @relation("StudentClassQuestions")
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 }
@@ -84,6 +85,7 @@ model Class {
   teacher         User              @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
   recordings      Recording[]
   attendances     ClassAttendance[]
+  questions       ClassQuestion[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -122,4 +124,21 @@ model ClassAttendance {
   @@unique([classId, studentId])
   @@index([classId])
   @@index([studentId])
+}
+
+model ClassQuestion {
+  id         String    @id @default(cuid())
+  classId    String
+  class      Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User      @relation("StudentClassQuestions", fields: [studentId], references: [id], onDelete: Cascade)
+  question   String
+  answered   Boolean   @default(false)
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([classId])
+  @@index([studentId])
+  @@index([classId, answered])
 }

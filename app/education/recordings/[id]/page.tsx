@@ -32,6 +32,10 @@ export default async function RecordingPage({ params }: PageProps) {
               },
             },
           },
+          questions: {
+            orderBy: { createdAt: "asc" },
+            include: { student: { select: { name: true, email: true } } },
+          },
         },
       },
     },
@@ -80,6 +84,29 @@ export default async function RecordingPage({ params }: PageProps) {
             )}
           </div>
         </section>
+
+        <section style={panelStyle}>
+          <div style={smallLabelStyle}>Class Q&A</div>
+          <h2 style={sectionTitleStyle}>Questions</h2>
+          <div style={questionListStyle}>
+            {recording.class.questions.length === 0 ? (
+              <p style={bodyStyle}>No questions were asked in this class.</p>
+            ) : (
+              recording.class.questions.map((question) => (
+                <article key={question.id} style={questionStyle}>
+                  <div style={questionHeaderStyle}>
+                    <span style={studentStyle}>{question.student.name || question.student.email}</span>
+                    <span style={question.answered ? answeredStyle : pendingStyle}>
+                      {question.answered ? "Answered" : "Pending"}
+                    </span>
+                  </div>
+                  <p style={questionTextStyle}>{question.question}</p>
+                  <span style={questionTimeStyle}>{formatDateTime(question.createdAt)}</span>
+                </article>
+              ))
+            )}
+          </div>
+        </section>
       </section>
     </main>
   );
@@ -104,11 +131,16 @@ function isVideoFile(videoUrl: string): boolean {
   return videoUrl.startsWith("/uploads/") || /\.(mp4|webm|ogg)$/i.test(videoUrl);
 }
 
+function formatDateTime(value: Date): string {
+  return value.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 const pageStyle: CSSProperties = { minHeight: "100vh", padding: "24px 16px 84px", background: "linear-gradient(180deg, #f5f7f4 0%, #eef2ef 100%)" };
 const shellStyle: CSSProperties = { maxWidth: 1080, margin: "0 auto", display: "grid", gap: 18 };
 const panelStyle: CSSProperties = { borderRadius: 26, padding: "26px 24px", background: "rgba(255,255,255,0.9)", border: "1px solid rgba(20,42,31,0.08)", boxShadow: "0 22px 70px rgba(20,40,30,0.06)" };
 const smallLabelStyle: CSSProperties = { color: "#1a6045", fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" };
 const titleStyle: CSSProperties = { margin: "10px 0 0", fontSize: "clamp(2rem, 5vw, 3.4rem)", lineHeight: 1.02, color: "#142a1f", fontFamily: "var(--font-playfair), Georgia, serif" };
+const sectionTitleStyle: CSSProperties = { margin: "8px 0 0", fontSize: 24, color: "#173127" };
 const metaStyle: CSSProperties = { margin: "10px 0 0", color: "#586a62", lineHeight: 1.7 };
 const bodyStyle: CSSProperties = { margin: "14px 0 0", color: "#556860", lineHeight: 1.8 };
 const mediaWrapStyle: CSSProperties = { position: "relative", width: "100%", aspectRatio: "16 / 9", marginTop: 22, borderRadius: 18, overflow: "hidden", background: "#0f172a" };
@@ -117,3 +149,11 @@ const videoStyle: CSSProperties = { width: "100%", height: "100%", objectFit: "c
 const externalWrapStyle: CSSProperties = { width: "100%", height: "100%", display: "grid", placeItems: "center", alignContent: "center", gap: 12, background: "#eef2ef", padding: 20 };
 const primaryButtonStyle: CSSProperties = { width: "fit-content", border: "none", cursor: "pointer", textDecoration: "none", background: "linear-gradient(180deg, #174d37, #123b2c)", color: "white", borderRadius: 999, padding: "13px 18px", fontWeight: 800, fontSize: 15, display: "inline-flex" };
 const secondaryButtonStyle: CSSProperties = { width: "fit-content", border: "1px solid rgba(20,42,31,0.14)", cursor: "pointer", textDecoration: "none", background: "rgba(255,255,255,0.9)", color: "#174d37", borderRadius: 999, padding: "12px 16px", fontWeight: 800, fontSize: 14 };
+const questionListStyle: CSSProperties = { display: "grid", gap: 12, marginTop: 18 };
+const questionStyle: CSSProperties = { border: "1px solid rgba(20,42,31,0.10)", borderRadius: 18, padding: "16px", background: "#fbfcfb", display: "grid", gap: 10 };
+const questionHeaderStyle: CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" };
+const studentStyle: CSSProperties = { fontWeight: 800, color: "#173127" };
+const pendingStyle: CSSProperties = { borderRadius: 999, padding: "6px 9px", background: "rgba(180,83,9,0.10)", color: "#92400e", fontSize: 12, fontWeight: 800 };
+const answeredStyle: CSSProperties = { borderRadius: 999, padding: "6px 9px", background: "rgba(22,101,52,0.10)", color: "#166534", fontSize: 12, fontWeight: 800 };
+const questionTextStyle: CSSProperties = { margin: 0, color: "#33443c", lineHeight: 1.7, whiteSpace: "pre-wrap" };
+const questionTimeStyle: CSSProperties = { color: "#66776f", fontSize: 13 };
