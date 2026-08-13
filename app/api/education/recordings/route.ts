@@ -58,11 +58,15 @@ export async function POST(req: Request) {
   }
 
   if (/<\s*iframe/i.test(videoUrl)) {
-    return NextResponse.json({ error: "Recording videoUrl must be a URL, not iframe HTML" }, { status: 422 });
+    return NextResponse.json({ error: "Recording videoUrl must be a URL, not iframe HTML" }, { status: 400 });
   }
 
   if (isYouTubeUrl(videoUrl) && !youtubeVideoId) {
-    return NextResponse.json({ error: "Unsupported YouTube recording URL" }, { status: 422 });
+    return NextResponse.json({ error: "Unsupported YouTube recording URL" }, { status: 400 });
+  }
+
+  if (!youtubeVideoId && !videoUrl.startsWith("/uploads/")) {
+    return NextResponse.json({ error: "Use a YouTube recording URL or upload a video file" }, { status: 400 });
   }
 
   const klass = await prisma.class.findUnique({ where: { id: classId } });

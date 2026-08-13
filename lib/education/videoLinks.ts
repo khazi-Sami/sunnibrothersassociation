@@ -34,12 +34,13 @@ export function extractYouTubeVideoId(rawUrl: string): string | null {
   let candidate: string | null = null;
 
   if (host === YOUTU_BE_HOST) {
-    candidate = firstPathSegment(url);
+    const pathParts = pathSegments(url);
+    candidate = pathParts.length === 1 ? pathParts[0] : null;
   } else if (YOUTUBE_HOSTS.has(host)) {
     const pathParts = pathSegments(url);
     if (url.pathname === "/watch") {
       candidate = url.searchParams.get("v");
-    } else if (pathParts[0] === "live") {
+    } else if (pathParts[0] === "live" && pathParts.length === 2) {
       candidate = pathParts[1] ?? null;
     }
   }
@@ -141,8 +142,4 @@ function parseUrl(rawUrl: string): URL | null {
 
 function pathSegments(url: URL): string[] {
   return url.pathname.split("/").filter(Boolean);
-}
-
-function firstPathSegment(url: URL): string | null {
-  return pathSegments(url)[0] ?? null;
 }

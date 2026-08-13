@@ -15,17 +15,18 @@ enum Role {
 }
 
 model User {
-  id                 String       @id @default(cuid())
+  id                 String            @id @default(cuid())
   name               String?
-  email              String       @unique
+  email              String            @unique
   password           String
-  role               Role         @default(STUDENT)
-  coursesTaught      Course[]     @relation("TeacherCourses")
+  role               Role              @default(STUDENT)
+  coursesTaught      Course[]          @relation("TeacherCourses")
   enrollments        Enrollment[]
-  classesTaught      Class[]      @relation("TeacherClasses")
-  recordingsUploaded Recording[]  @relation("UserRecordings")
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  classesTaught      Class[]           @relation("TeacherClasses")
+  recordingsUploaded Recording[]       @relation("UserRecordings")
+  classAttendances   ClassAttendance[] @relation("StudentClassAttendance")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 }
 
 enum ClassStatus {
@@ -68,22 +69,23 @@ model Enrollment {
 }
 
 model Class {
-  id              String      @id @default(cuid())
+  id              String            @id @default(cuid())
   courseId        String
-  course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course          Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title           String
   description     String?
-  classType       ClassType   @default(YOUTUBE_LIVE)
+  classType       ClassType         @default(YOUTUBE_LIVE)
   youtubeVideoId  String?
   googleMeetUrl   String?
   scheduledAt     DateTime
-  durationMinutes Int         @default(60)
-  status          ClassStatus @default(SCHEDULED)
+  durationMinutes Int               @default(60)
+  status          ClassStatus       @default(SCHEDULED)
   teacherId       String
-  teacher         User        @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher         User              @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
   recordings      Recording[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  attendances     ClassAttendance[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([teacherId])
   @@index([courseId])
@@ -105,4 +107,19 @@ model Recording {
 
   @@index([classId])
   @@index([createdById])
+}
+
+model ClassAttendance {
+  id         String    @id @default(cuid())
+  classId    String
+  class      Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    User      @relation("StudentClassAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  joinedAt   DateTime  @default(now())
+  lastSeenAt DateTime?
+  leftAt     DateTime?
+
+  @@unique([classId, studentId])
+  @@index([classId])
+  @@index([studentId])
 }

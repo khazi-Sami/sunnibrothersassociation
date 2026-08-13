@@ -218,7 +218,7 @@ export default function EducationClient({ role }: { role: Role }) {
         if (!uploadRes.ok) throw new Error(uploadData?.error ?? "File upload failed");
         finalVideoUrl = uploadData.url;
       }
-      if (!finalVideoUrl) throw new Error("Please upload a file or provide a video/YouTube link");
+      if (!finalVideoUrl) throw new Error("Please upload a file or provide a YouTube recording link");
       const res = await fetch("/api/education/recordings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -389,7 +389,7 @@ export default function EducationClient({ role }: { role: Role }) {
                 </select>
                 <input value={recordingTitle} onChange={(e) => setRecordingTitle(e.target.value)} required placeholder="Recording title" style={inputStyle} />
                 <textarea rows={2} value={recordingDescription} onChange={(e) => setRecordingDescription(e.target.value)} placeholder="Description" style={inputStyle} />
-                <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="YouTube / Google Drive / external video URL" style={inputStyle} />
+                <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="YouTube recording URL" style={inputStyle} />
                 <input type="file" accept="video/*" onChange={(e) => setRecordingFile(e.target.files?.[0] ?? null)} style={inputStyle} />
                 <button type="submit" disabled={uploadingRecording} style={primaryButton}>{uploadingRecording ? "Saving..." : "Save Recording"}</button>
               </div>
@@ -399,7 +399,7 @@ export default function EducationClient({ role }: { role: Role }) {
 
         <section style={panelStyle}>
           <div style={smallLabelStyle}>Courses</div>
-          <h2 style={sectionTitleStyle}>Course catalog.</h2>
+          <h2 style={sectionTitleStyle}>{role === "STUDENT" ? "My courses and catalog." : "Course catalog."}</h2>
           {loading ? <p style={mutedStyle}>Loading courses...</p> : courses.length === 0 ? <p style={mutedStyle}>No courses available yet.</p> : (
             <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
               {courses.map((course) => (
@@ -428,8 +428,8 @@ export default function EducationClient({ role }: { role: Role }) {
         </section>
 
         <section style={panelStyle}>
-          <div style={smallLabelStyle}>Live Classes</div>
-          <h2 style={sectionTitleStyle}>Upcoming sessions.</h2>
+          <div style={smallLabelStyle}>Upcoming Classes</div>
+          <h2 style={sectionTitleStyle}>Live class schedule.</h2>
           {loading ? <p style={mutedStyle}>Loading classes...</p> : classes.length === 0 ? <p style={mutedStyle}>No upcoming classes yet.</p> : (
             <div style={{ display: "grid", gap: 16, marginTop: 20 }}>
               {classes.map((klass) => (
@@ -449,8 +449,8 @@ export default function EducationClient({ role }: { role: Role }) {
                       </p>
                     </div>
                     <div style={actionRowStyle}>
-                      <Link href={`/classes/${klass.id}`} style={primaryButton}>
-                        {canManageClasses ? getManagerOpenLabel(klass.classType) : klass.status === "LIVE" ? "Join Live Class" : "View Details"}
+                      <Link href={`/education/live/${klass.id}`} style={primaryButton}>
+                        {canManageClasses ? getManagerOpenLabel(klass.classType) : getStudentClassActionLabel(klass)}
                       </Link>
                       {canManageClasses ? (
                         <>
@@ -505,7 +505,7 @@ export default function EducationClient({ role }: { role: Role }) {
                   <h3 style={{ marginTop: 14, fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{rec.title}</h3>
                   <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{rec.description || "No description"}</p>
                   <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>Class: {rec.class.title}</p>
-                  <a href={rec.videoUrl} target="_blank" rel="noreferrer" style={{ ...primaryButton, marginTop: 14, display: "inline-flex" }}>Open Recording</a>
+                  <Link href={`/education/recordings/${rec.id}`} style={{ ...primaryButton, marginTop: 14, display: "inline-flex" }}>Open Recording</Link>
                 </article>
               ))}
             </div>
@@ -556,6 +556,15 @@ function formatStatus(status: ClassStatus): string {
 
 function getManagerOpenLabel(classType: ClassType): string {
   return classType === "GOOGLE_MEET" ? "Open Meeting" : "Open Class";
+}
+
+function getStudentClassActionLabel(klass: ClassItem): string {
+  if (klass.status === "LIVE") {
+    return klass.classType === "GOOGLE_MEET" ? "Join Meeting" : "Watch Now";
+  }
+  if (klass.status === "ENDED") return "View Summary";
+  if (klass.status === "CANCELLED") return "View Status";
+  return "View Details";
 }
 
 function pad2(value: number): string {

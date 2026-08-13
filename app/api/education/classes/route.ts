@@ -23,8 +23,7 @@ export async function GET() {
   await Promise.all(liveClasses.map((klass) => autoExpireClassIfNeeded(klass.id)));
 
   const baseWhere = {
-    OR: [{ status: "SCHEDULED" as const }, { status: "LIVE" as const }],
-    scheduledAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+    scheduledAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
   };
 
   if (session.user.role === "ADMIN") {
@@ -57,12 +56,25 @@ export async function GET() {
       course: { enrollments: { some: { studentId: session.user.id } } },
     },
     orderBy: { scheduledAt: "asc" },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      status: true,
+      classType: true,
       teacher: { select: { name: true, email: true } },
       course: { select: { id: true, title: true } },
     },
   });
-  return NextResponse.json({ classes });
+  return NextResponse.json({
+    classes: classes.map((klass) => ({
+      ...klass,
+      youtubeVideoId: null,
+      googleMeetUrl: null,
+    })),
+  });
 }
 
 export async function POST(req: Request) {
