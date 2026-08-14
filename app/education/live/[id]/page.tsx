@@ -4,8 +4,10 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
+import { getStoredClassMediaError } from "@/lib/education/videoLinks";
 import { getPrisma } from "@/lib/prisma";
 import ClassQuestionsPanel, { type ClassQuestionItem } from "./ClassQuestionsPanel";
+import LiveClassActions from "./LiveClassActions";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -77,6 +79,11 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
   const teacherName = klass.teacher.name || klass.teacher.email;
   const type = classTypeLabel[klass.classType];
   const canManageQuestions = isAdmin || isAssignedTeacher;
+  const mediaError = getStoredClassMediaError({
+    classType: klass.classType,
+    youtubeVideoId: klass.youtubeVideoId,
+    googleMeetUrl: klass.googleMeetUrl,
+  });
   const initialQuestions: ClassQuestionItem[] = klass.questions.map((question) => ({
     id: question.id,
     question: question.question,
@@ -101,6 +108,22 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
           <p style={metaStyle}>Course: {klass.course.title}</p>
           {renderStatusSummary(klass.status, klass.scheduledAt)}
         </section>
+
+        {canManageQuestions ? (
+          <LiveClassActions
+            classId={klass.id}
+            status={klass.status}
+            startDisabledReason={klass.status === "SCHEDULED" ? mediaError : null}
+          />
+        ) : null}
+
+        {mediaError && (klass.status === "SCHEDULED" || klass.status === "LIVE") ? (
+          <section style={noticeStyle}>
+            <h2 style={noticeTitleStyle}>Live link needs attention.</h2>
+            <p style={mutedStyle}>{mediaError}</p>
+            {canManageQuestions ? <Link href="/education" style={primaryButtonStyle}>Edit Class</Link> : null}
+          </section>
+        ) : null}
 
         {klass.status === "SCHEDULED" ? (
           <section style={noticeStyle}>

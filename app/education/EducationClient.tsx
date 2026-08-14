@@ -432,7 +432,10 @@ export default function EducationClient({ role }: { role: Role }) {
           <h2 style={sectionTitleStyle}>Live class schedule.</h2>
           {loading ? <p style={mutedStyle}>Loading classes...</p> : classes.length === 0 ? <p style={mutedStyle}>No upcoming classes yet.</p> : (
             <div style={{ display: "grid", gap: 16, marginTop: 20 }}>
-              {classes.map((klass) => (
+              {classes.map((klass) => {
+                const mediaError = getClassMediaError(klass);
+
+                return (
                 <div key={klass.id} style={contentCardStyle}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 18, flexWrap: "wrap", alignItems: "start" }}>
                     <div style={{ minWidth: 240, flex: "1 1 360px" }}>
@@ -443,6 +446,7 @@ export default function EducationClient({ role }: { role: Role }) {
                         <span style={softChipStyle}>{classTypeLabels[klass.classType].title}</span>
                         <span style={softChipStyle}>{classTypeLabels[klass.classType].platform}</span>
                         <span style={softChipStyle}>Status: {formatStatus(klass.status)}</span>
+                        {mediaError ? <span style={warningChipStyle}>Missing live link</span> : null}
                       </div>
                       <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>
                         {klass.durationMinutes} minutes - Course: {klass.course.title} - Teacher: {klass.teacher.name || klass.teacher.email}
@@ -456,8 +460,8 @@ export default function EducationClient({ role }: { role: Role }) {
                         <>
                           <button type="button" onClick={() => beginEditClass(klass)} disabled={klass.status === "ENDED" || klass.status === "CANCELLED"} style={secondaryButton}>Edit</button>
                           {klass.status === "SCHEDULED" ? (
-                            <button type="button" onClick={() => handleClassAction(klass, "start")} disabled={classActionBusy === `${klass.id}:start`} style={secondaryButton}>
-                              {classActionBusy === `${klass.id}:start` ? "Starting..." : "Start Class"}
+                            <button type="button" onClick={() => handleClassAction(klass, "start")} disabled={classActionBusy === `${klass.id}:start` || Boolean(mediaError)} title={mediaError ?? undefined} style={secondaryButton}>
+                              {classActionBusy === `${klass.id}:start` ? "Starting..." : mediaError ? "Add Link First" : "Start Class"}
                             </button>
                           ) : null}
                           {klass.status === "LIVE" ? (
@@ -475,7 +479,8 @@ export default function EducationClient({ role }: { role: Role }) {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -567,6 +572,16 @@ function getStudentClassActionLabel(klass: ClassItem): string {
   return "View Details";
 }
 
+function getClassMediaError(klass: Pick<ClassItem, "classType" | "youtubeVideoId" | "googleMeetUrl">): string | null {
+  if (klass.classType === "YOUTUBE_LIVE" && !klass.youtubeVideoId) {
+    return "YouTube Live classes need a YouTube URL before they can start.";
+  }
+  if (klass.classType === "GOOGLE_MEET" && !klass.googleMeetUrl) {
+    return "Google Meet classes need a Meet URL before they can start.";
+  }
+  return null;
+}
+
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -603,6 +618,7 @@ const inputStyle: React.CSSProperties = { padding: "14px 16px", borderRadius: 18
 const helpTextStyle: React.CSSProperties = { color: "#66776f", fontSize: 13, lineHeight: 1.6 };
 const chipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
 const softChipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
+const warningChipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "#fffbeb", color: "#92400e", fontSize: 12, fontWeight: 800 };
 const actionRowStyle: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" };
 const primaryButton: React.CSSProperties = { width: "fit-content", border: "none", cursor: "pointer", textDecoration: "none", background: "linear-gradient(180deg, #174d37, #123b2c)", color: "white", borderRadius: 999, padding: "14px 20px", fontWeight: 800, fontSize: 15 };
 const secondaryButton: React.CSSProperties = { width: "fit-content", border: "1px solid rgba(20,42,31,0.14)", cursor: "pointer", textDecoration: "none", background: "rgba(255,255,255,0.9)", color: "#174d37", borderRadius: 999, padding: "12px 16px", fontWeight: 800, fontSize: 14 };
