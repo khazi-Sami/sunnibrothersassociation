@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { useAnalytics } from "@/app/components/AnalyticsProvider";
 
 type Cause = {
   id: string;
@@ -49,6 +50,7 @@ function formatINR(amount: number) {
 }
 
 export default function DonationClient() {
+  const { track } = useAnalytics();
   const [selectedCause, setSelectedCause] = useState<Cause>(causes[0]);
   const [amount, setAmount] = useState<number>(causes[0].suggested ?? 500);
   const [name, setName] = useState("");
@@ -76,6 +78,7 @@ export default function DonationClient() {
   async function handlePay() {
     if (!amount || amount < minAmount) return alert("Please enter a valid amount.");
     setLoading(true);
+    track("donation_checkout_started", { resourceId: selectedCause.id, metadata: { resourceType: "cause" } });
     try {
       const ok = await loadRazorpayScript();
       if (!ok) return alert("Failed to load Razorpay. Please try again.");
@@ -106,7 +109,8 @@ export default function DonationClient() {
             body: JSON.stringify({ orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature }),
           });
           const vd = (await v.json()) as RazorpayVerifyResponse;
-          if (!v.ok) return alert(vd?.error ?? "Payment verification failed");
+          if (!v.ok) { track("donation_failed", { resourceId: selectedCause.id, metadata: { status: "verification_failed" } }); return alert(vd?.error ?? "Payment verification failed"); }
+          track("donation_completed", { resourceId: selectedCause.id, metadata: { status: "verified" } });
           alert("Payment successful. JazakAllahu Khairan.");
         },
       };
@@ -119,7 +123,7 @@ export default function DonationClient() {
     }
   }
 
-  return (
+                  return (
     <main style={pageStyle} className="interior-page">
       <section style={shellStyle} className="interior-shell">
         <div style={centerHeroStyle} className="interior-intro">
@@ -153,7 +157,7 @@ export default function DonationClient() {
               {causes.map((c) => {
                 const active = c.id === selectedCause.id;
                 return (
-                  <button key={c.id} type="button" aria-pressed={active} onClick={() => { setSelectedCause(c); setAmount(c.suggested ?? 500); }} style={causeCardStyle(active)}>
+                <button key={c.id} type="button" aria-pressed={active} onClick={() => { setSelectedCause(c); setAmount(c.suggested ?? 500); track("donation_amount_selected", { resourceId: c.id, metadata: { resourceType: "cause" } }); }} style={causeCardStyle(active)}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
                       <div style={{ fontWeight: 800, color: "#173127", textAlign: "left" }}>{c.title}</div>
                       <span style={amountChipStyle}>{c.suggested ? formatINR(c.suggested) : "Any"}</span>

@@ -1,5 +1,8 @@
+"use client";
+
 import { ArrowUpRight, Globe2, Mail } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const explore = [
   ["About", "/about"],
@@ -16,6 +19,9 @@ const community = [
 ] as const;
 
 export default function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/admin")) return null;
+
   return (
     <footer className="site-footer">
       <div className="site-footer__top">

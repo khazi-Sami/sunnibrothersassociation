@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BookOpenCheck, CalendarDays, CirclePlay, Radio, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAnalytics } from "@/app/components/AnalyticsProvider";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
 type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
@@ -26,6 +27,7 @@ const classTypeLabels: Record<ClassType, { title: string; platform: string; desc
 };
 
 export default function EducationClient({ role }: { role: Role }) {
+  const { track } = useAnalytics();
   const canManageClasses = role === "TEACHER" || role === "ADMIN";
   const [courses, setCourses] = useState<CourseItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -148,6 +150,7 @@ export default function EducationClient({ role }: { role: Role }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok && res.status !== 409) throw new Error(data?.error ?? "Unable to enroll");
+      track("course_enrolled", { resourceId: courseId, metadata: { resourceType: "course" } });
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to enroll");
@@ -297,7 +300,7 @@ export default function EducationClient({ role }: { role: Role }) {
                 <p>{priorityClass.description || priorityClass.course.title}</p>
                 <div className="education-priority__meta"><span><CalendarDays size={15} /> {formatClassDateTime(priorityClass.scheduledAt)}</span><span>{priorityClass.durationMinutes} minutes</span><span>{classTypeLabels[priorityClass.classType].platform}</span></div>
               </div>
-              <Link href={`/education/live/${priorityClass.id}`} className="site-btn-primary">{canManageClasses ? getManagerOpenLabel(priorityClass.classType) : getStudentClassActionLabel(priorityClass)} <CirclePlay size={17} /></Link>
+              <Link href={`/education/live/${priorityClass.id}`} onClick={() => track("class_join_clicked", { resourceId: priorityClass.id, metadata: { resourceType: "class", status: priorityClass.status } })} className="site-btn-primary">{canManageClasses ? getManagerOpenLabel(priorityClass.classType) : getStudentClassActionLabel(priorityClass)} <CirclePlay size={17} /></Link>
             </div>
           ) : (
             <div className="education-empty"><BookOpenCheck size={22} /><div><h2 id="next-class-title">No class is scheduled yet.</h2><p>Your next learning session will appear here when it is published.</p></div></div>
@@ -413,7 +416,7 @@ export default function EducationClient({ role }: { role: Role }) {
             <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
               {courses.map((course) => (
                 <div key={course.id} style={contentCardStyle}>
-                  <h3 style={{ fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{course.title}</h3>
+                  <h3 style={{ fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }} onClick={() => track("course_viewed", { resourceId: course.id, metadata: { resourceType: "course" } })}>{course.title}</h3>
                   <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{course.description || "No description"}</p>
                   <p style={{ marginTop: 8, color: "#7a8a83", fontSize: 14 }}>Teacher: {course.teacher.name || course.teacher.email}</p>
                   {role === "STUDENT" ? (
@@ -462,7 +465,7 @@ export default function EducationClient({ role }: { role: Role }) {
                       </p>
                     </div>
                     <div style={actionRowStyle}>
-                      <Link href={`/education/live/${klass.id}`} style={primaryButton}>
+                      <Link href={`/education/live/${klass.id}`} onClick={() => track("class_join_clicked", { resourceId: klass.id, metadata: { resourceType: "class", status: klass.status } })} style={primaryButton}>
                         {canManageClasses ? getManagerOpenLabel(klass.classType) : getStudentClassActionLabel(klass)}
                       </Link>
                       {canManageClasses ? (
@@ -519,7 +522,7 @@ export default function EducationClient({ role }: { role: Role }) {
                   <h3 style={{ marginTop: 14, fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{rec.title}</h3>
                   <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{rec.description || "No description"}</p>
                   <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>Class: {rec.class.title}</p>
-                  <Link href={`/education/recordings/${rec.id}`} style={{ ...primaryButton, marginTop: 14, display: "inline-flex" }}>Open Recording</Link>
+                  <Link href={`/education/recordings/${rec.id}`} onClick={() => track("recording_viewed", { resourceId: rec.id, metadata: { resourceType: "recording" } })} style={{ ...primaryButton, marginTop: 14, display: "inline-flex" }}>Open Recording</Link>
                 </article>
               ))}
             </div>

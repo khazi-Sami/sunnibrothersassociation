@@ -142,3 +142,25 @@ model ClassQuestion {
   @@index([studentId])
   @@index([classId, answered])
 }
+
+model AnalyticsEvent {
+  id            String   @id @default(cuid())
+  eventName     String
+  path          String
+  sessionId     String
+  anonymousId   String?
+  occurredAt    DateTime @default(now())
+  referrer      String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  deviceType    String?
+  role          String?
+  resourceId    String?
+  metadata      Json?
+
+  @@index([occurredAt])
+  @@index([eventName, occurredAt])
+  @@index([path, occurredAt])
+  @@index([sessionId, occurredAt])
+}

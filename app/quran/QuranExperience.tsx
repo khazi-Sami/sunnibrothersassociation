@@ -3,6 +3,7 @@
 import { BookOpenText, List, LoaderCircle, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Ayah from "./Ayah";
+import { useAnalytics } from "@/app/components/AnalyticsProvider";
 
 type SurahMeta = { number: number; name: string; englishName: string; englishNameTranslation: string; revelationType: string; numberOfAyahs: number };
 type AyahRow = { numberInSurah: number; arabic: string; translation: string };
@@ -22,6 +23,7 @@ const fallbackSurahList: SurahMeta[] = [
 ];
 
 export default function QuranExperience() {
+  const { track } = useAnalytics();
   const [surahs, setSurahs] = useState<SurahMeta[]>(fallbackSurahList);
   const [selectedSurah, setSelectedSurah] = useState(1);
   const [query, setQuery] = useState("");
@@ -92,6 +94,8 @@ export default function QuranExperience() {
 
   function openSurah(surahNumber: number) {
     setSelectedSurah(surahNumber);
+    track("surah_viewed", { resourceId: String(surahNumber), metadata: { surahNumber } });
+    track("quran_navigation_used", { resourceId: String(surahNumber), metadata: { resourceType: "surah" } });
     setMobileView("reader");
     window.setTimeout(() => readerRef.current?.scrollIntoView({ block: "start" }), 80);
   }
@@ -113,7 +117,7 @@ export default function QuranExperience() {
         <div className="quran-workspace">
           <aside className={`quran-library ${mobileView === "reader" ? "quran-library--mobile-hidden" : ""}`} aria-label="Surah navigation">
             <div className="quran-library__head"><div><span className="quran-overline">Surah index</span><h2>Choose a Surah</h2></div>{!listLoading ? <span>{filteredSurahs.length}</span> : null}</div>
-            <label className="quran-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search Surahs</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or number" type="search" /></label>
+            <label className="quran-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search Surahs</span><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) track("surah_search_used", { metadata: { resourceType: "surah" } }); }} placeholder="Name or number" type="search" /></label>
             {listError ? <p className="quran-notice" role="status">{listError}</p> : null}
             <nav className="quran-surah-list" aria-label="Surahs">
               {listLoading && surahs.length === 0 ? <p className="quran-loading"><LoaderCircle size={17} /> Loading Surahs…</p> : null}

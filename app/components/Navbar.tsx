@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAnalytics } from "./AnalyticsProvider";
 
 const links = [
   { href: "/about", label: "About" },
@@ -50,6 +51,13 @@ function BrandMark() {
 export default function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { track } = useAnalytics();
+
+  if (pathname.startsWith("/admin")) return null;
+
+  function trackNavigation(label: string, href: string) {
+    track("navigation_clicked", { resourceId: href, metadata: { resourceType: label } });
+  }
 
   return (
     <header className="site-header">
@@ -63,12 +71,12 @@ export default function Navbar() {
         </Link>
 
         <div className="site-nav__links">
-          {links.map((link) => <Link key={link.href} href={link.href} className={pathname === link.href ? "is-active" : ""}>{link.label}</Link>)}
+          {links.map((link) => <Link key={link.href} href={link.href} onClick={() => trackNavigation(link.label, link.href)} className={pathname === link.href ? "is-active" : ""}>{link.label}</Link>)}
         </div>
 
         <div className="site-nav__actions">
-          <Link href="/login" className="site-nav__login">Sign in</Link>
-          <Link href="/donation" className="site-nav__donate">Give with purpose <ArrowUpRight size={15} strokeWidth={2.3} /></Link>
+          <Link href="/login" onClick={() => trackNavigation("Sign in", "/login")} className="site-nav__login">Sign in</Link>
+          <Link href="/donation" onClick={() => track("primary_cta_clicked", { resourceId: "/donation", metadata: { resourceType: "Give with purpose" } })} className="site-nav__donate">Give with purpose <ArrowUpRight size={15} strokeWidth={2.3} /></Link>
         </div>
 
         <button className="site-nav__toggle" type="button" aria-label={open ? "Close navigation menu" : "Open navigation menu"} aria-expanded={open} onClick={() => setOpen((value) => !value)}>
@@ -77,9 +85,9 @@ export default function Navbar() {
       </nav>
 
       {open ? <div className="site-nav__mobile" aria-label="Mobile navigation">
-        {links.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className={pathname === link.href ? "is-active" : ""}>{link.label}</Link>)}
-        <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
-        <Link href="/donation" onClick={() => setOpen(false)} className="site-nav__mobile-donate">Give with purpose <ArrowUpRight size={16} /></Link>
+        {links.map((link) => <Link key={link.href} href={link.href} onClick={() => { trackNavigation(link.label, link.href); setOpen(false); }} className={pathname === link.href ? "is-active" : ""}>{link.label}</Link>)}
+        <Link href="/login" onClick={() => { trackNavigation("Sign in", "/login"); setOpen(false); }}>Sign in</Link>
+        <Link href="/donation" onClick={() => { track("primary_cta_clicked", { resourceId: "/donation", metadata: { resourceType: "Give with purpose" } }); setOpen(false); }} className="site-nav__mobile-donate">Give with purpose <ArrowUpRight size={16} /></Link>
       </div> : null}
     </header>
   );

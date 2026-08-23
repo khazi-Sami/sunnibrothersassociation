@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { useAnalytics } from "@/app/components/AnalyticsProvider";
 
 type MoneyFields = {
   cash: number;
@@ -20,6 +21,7 @@ function formatINR(amount: number) {
 }
 
 export default function ZakatClient() {
+  const { track } = useAnalytics();
   const [nisab, setNisab] = useState<number>(50000);
   const [useSilverNisabHint, setUseSilverNisabHint] = useState(true);
   const [f, setF] = useState<MoneyFields>({ cash: 0, bank: 0, gold: 0, silver: 0, investments: 0, businessAssets: 0, receivables: 0, otherAssets: 0, debtsDue: 0 });
@@ -46,6 +48,7 @@ export default function ZakatClient() {
           onBlur={() => {
             const num = displayValue === "" ? 0 : Number(displayValue);
             onCommit(num);
+            track("zakat_calculator_started", { metadata: { resourceType: "asset_input" } });
             setDisplayValue(num === 0 ? "" : num.toString());
           }}
           onFocus={(e) => e.target.select()}
@@ -107,7 +110,7 @@ export default function ZakatClient() {
                 pattern="[0-9]*"
                 value={nisab === 0 ? "" : nisab.toString()}
                 onChange={(e) => setNisab(e.target.value.replace(/[^0-9]/g, "") === "" ? 0 : Number(e.target.value.replace(/[^0-9]/g, "")))}
-                onBlur={() => { if (nisab === 0) setNisab(50000); }}
+                onBlur={() => { if (nisab === 0) setNisab(50000); track("zakat_calculated", { metadata: { resourceType: "nisab" } }); }}
                 style={{ ...inputStyle, maxWidth: 280 }}
               />
               <label style={{ display: "flex", alignItems: "center", gap: 10, color: "#586a62", fontSize: 14 }}>
