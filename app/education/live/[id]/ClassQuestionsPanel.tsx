@@ -107,7 +107,7 @@ export default function ClassQuestionsPanel({
   }
 
   return (
-    <section style={panelStyle}>
+    <section style={panelStyle} className="interior-panel education-interactive-panel">
       <div style={headerRowStyle}>
         <div>
           <div style={smallLabelStyle}>Class Q&A</div>

@@ -27,27 +27,24 @@ export default function ActivitiesClient() {
   const filtered = useMemo(() => (filter === "All" ? activities : activities.filter((a) => a.category === filter)), [filter]);
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
+    <main style={pageStyle} className="interior-page">
+      <section style={shellStyle} className="interior-shell">
+        <div style={centerHeroStyle} className="interior-intro">
           <div style={eyebrowStyle}>Activities</div>
           <h1 style={titleStyle}>
             A calmer way to explore
             <br />
             <span style={{ color: "#1a6045" }}>programs and community work.</span>
           </h1>
-          <p style={subtitleStyle}>
-            Education, welfare, youth, and family support are now presented in a simpler, cleaner, more premium layout.
-          </p>
+          <p style={subtitleStyle}>Discover learning, welfare, youth, and family programs that bring the community together in service.</p>
         </div>
 
-        <div className="activities-hero-grid" style={heroGridStyle}>
-          <div style={textPanelStyle}>
-            <div style={smallLabelStyle}>Designed for Clarity</div>
-            <h2 style={sectionTitleStyle}>Find what matters faster, with less clutter.</h2>
+        <div className="activities-hero-grid interior-feature" style={heroGridStyle}>
+          <div style={textPanelStyle} className="interior-feature__copy">
+            <div style={smallLabelStyle}>Community life</div>
+            <h2 style={sectionTitleStyle}>Serve creation with mercy, and walk with gratitude.</h2>
             <p style={bodyStyle}>
-              This page focuses on discoverability first, so students, families, and supporters can quickly understand
-              what the madrasa offers and how to get involved.
+              Find a program for learning, family support, youth development, or welfare, and see how you can take part.
             </p>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 22 }}>
@@ -75,14 +72,14 @@ export default function ActivitiesClient() {
             </div>
           </div>
 
-          <div style={imageCardStyle}>
-            <Image src="/green-dome-minaret.jpg" alt="Green Dome and minaret in Madinah" fill style={{ objectFit: "cover" }} />
+          <div style={imageCardStyle} className="interior-feature__image">
+            <Image src="/green-dome-minaret.jpg" alt="The Green Dome and a minaret in Madinah" fill sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
           </div>
         </div>
 
         <div style={threeColGridStyle}>
           {filtered.map((activity) => (
-            <article key={activity.id} style={cardStyle}>
+            <article key={activity.id} style={cardStyle} className="interior-card">
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "start" }}>
                 <h3 style={cardTitleStyle}>{activity.title}</h3>
                 <span style={chipStyle}>{activity.category}</span>
@@ -96,7 +93,7 @@ export default function ActivitiesClient() {
           ))}
         </div>
 
-        <section style={ctaPanelStyle}>
+        <section style={ctaPanelStyle} className="interior-cta">
           <div style={{ textAlign: "center" }}>
             <div style={{ ...smallLabelStyle, color: "rgba(255,255,255,0.72)" }}>Get Involved</div>
             <h2 style={{ ...sectionTitleStyle, color: "white", marginTop: 12 }}>Support a more active, connected community.</h2>

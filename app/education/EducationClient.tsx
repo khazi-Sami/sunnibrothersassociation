@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { BookOpenCheck, CalendarDays, CirclePlay, Radio, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
@@ -108,6 +108,13 @@ export default function EducationClient({ role }: { role: Role }) {
   }, [loadData]);
 
   const teacherClasses = useMemo(() => classes, [classes]);
+  const priorityClass = useMemo(() => {
+    const liveClass = classes.find((klass) => klass.status === "LIVE");
+    if (liveClass) return liveClass;
+    return [...classes]
+      .filter((klass) => klass.status === "SCHEDULED")
+      .sort((first, second) => new Date(first.scheduledAt).getTime() - new Date(second.scheduledAt).getTime())[0] ?? null;
+  }, [classes]);
 
   async function handleCreateCourse(e: React.FormEvent) {
     e.preventDefault();
@@ -263,40 +270,42 @@ export default function EducationClient({ role }: { role: Role }) {
     setYoutubeLiveUrl(klass.youtubeVideoId ? `https://www.youtube.com/watch?v=${klass.youtubeVideoId}` : "");
     setGoogleMeetUrl(klass.googleMeetUrl ?? "");
     setDurationMinutes(klass.durationMinutes);
-    document.getElementById("create-live-class")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("create-live-class")?.scrollIntoView({ block: "start" });
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
-          <div style={eyebrowStyle}>Education</div>
-          <h1 style={titleStyle}>
-            Live classes.
-            <br />
-            <span style={{ color: "#1a6045" }}>Recorded lessons.</span>
-          </h1>
-          <p style={subtitleStyle}>A more premium education hub for teachers and students, without losing functionality.</p>
-        </div>
+    <main style={pageStyle} className="education-page">
+      <section style={shellStyle} className="education-shell">
+        <header className="education-intro">
+          <div>
+            <div style={eyebrowStyle}>Education</div>
+            <h1>Learn with guidance.<br /><span>Grow with sincerity.</span></h1>
+            <p>Join classes, return to recorded lessons, and keep your learning close at hand. Let knowledge shape both understanding and character.</p>
+          </div>
+          <span className="education-role"><Settings2 size={15} /> {role.charAt(0) + role.slice(1).toLowerCase()} access</span>
+        </header>
 
-        <div className="edu-hero-grid" style={heroGridStyle}>
-          <div style={textPanelStyle}>
-            <div style={smallLabelStyle}>Role-Aware Portal</div>
-            <h2 style={sectionTitleStyle}>Teaching, scheduling, and recordings in one calmer workflow.</h2>
-            <p style={bodyStyle}>Teachers can publish YouTube Live lectures or Google Meet interactive classes while students get a clean view of upcoming sessions and lesson content.</p>
-            <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <span style={chipStyle}>Logged in as: {role}</span>
-              <span style={chipStyle}>YouTube Live + Google Meet</span>
+        {error ? <div style={errorStyle} role="alert">{error}</div> : null}
+
+        <section className="education-priority" aria-labelledby="next-class-title">
+          <div className="education-priority__label"><Radio size={17} /><span>{priorityClass?.status === "LIVE" ? "Live now" : "Next class"}</span></div>
+          {loading ? <p style={mutedStyle}>Loading your education schedule…</p> : priorityClass ? (
+            <div className="education-priority__content">
+              <div>
+                <span className={`education-status education-status--${priorityClass.status.toLowerCase()}`}>{formatStatus(priorityClass.status)}</span>
+                <h2 id="next-class-title">{priorityClass.title}</h2>
+                <p>{priorityClass.description || priorityClass.course.title}</p>
+                <div className="education-priority__meta"><span><CalendarDays size={15} /> {formatClassDateTime(priorityClass.scheduledAt)}</span><span>{priorityClass.durationMinutes} minutes</span><span>{classTypeLabels[priorityClass.classType].platform}</span></div>
+              </div>
+              <Link href={`/education/live/${priorityClass.id}`} className="site-btn-primary">{canManageClasses ? getManagerOpenLabel(priorityClass.classType) : getStudentClassActionLabel(priorityClass)} <CirclePlay size={17} /></Link>
             </div>
-            {error ? <div style={{ ...errorStyle, marginTop: 18 }}>{error}</div> : null}
-          </div>
-          <div style={imageCardStyle}>
-            <Image src="/open-quran.jpg" alt="Open Quran for study" fill style={{ objectFit: "cover" }} />
-          </div>
-        </div>
+          ) : (
+            <div className="education-empty"><BookOpenCheck size={22} /><div><h2 id="next-class-title">No class is scheduled yet.</h2><p>Your next learning session will appear here when it is published.</p></div></div>
+          )}
+        </section>
 
         {canManageClasses && (
-          <div className="edu-form-grid" style={{ display: "grid", gap: 20 }}>
+          <div className="edu-form-grid education-management" style={{ display: "grid", gap: 20 }}>
             <form onSubmit={handleCreateCourse} style={panelStyle}>
               <div style={smallLabelStyle}>Courses</div>
               <h2 style={sectionTitleStyle}>Create course.</h2>
@@ -397,7 +406,7 @@ export default function EducationClient({ role }: { role: Role }) {
           </div>
         )}
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="education-section">
           <div style={smallLabelStyle}>Courses</div>
           <h2 style={sectionTitleStyle}>{role === "STUDENT" ? "My courses and catalog." : "Course catalog."}</h2>
           {loading ? <p style={mutedStyle}>Loading courses...</p> : courses.length === 0 ? <p style={mutedStyle}>No courses available yet.</p> : (
@@ -427,7 +436,7 @@ export default function EducationClient({ role }: { role: Role }) {
           )}
         </section>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="education-section">
           <div style={smallLabelStyle}>Upcoming Classes</div>
           <h2 style={sectionTitleStyle}>Live class schedule.</h2>
           {loading ? <p style={mutedStyle}>Loading classes...</p> : classes.length === 0 ? <p style={mutedStyle}>No upcoming classes yet.</p> : (
@@ -445,7 +454,7 @@ export default function EducationClient({ role }: { role: Role }) {
                         <span style={softChipStyle}>{formatClassDateTime(klass.scheduledAt)}</span>
                         <span style={softChipStyle}>{classTypeLabels[klass.classType].title}</span>
                         <span style={softChipStyle}>{classTypeLabels[klass.classType].platform}</span>
-                        <span style={softChipStyle}>Status: {formatStatus(klass.status)}</span>
+                        <span className={`education-status education-status--${klass.status.toLowerCase()}`}>{formatStatus(klass.status)}</span>
                         {mediaError ? <span style={warningChipStyle}>Missing live link</span> : null}
                       </div>
                       <p style={{ marginTop: 10, color: "#7a8a83", fontSize: 14 }}>
@@ -485,7 +494,7 @@ export default function EducationClient({ role }: { role: Role }) {
           )}
         </section>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="education-section">
           <div style={smallLabelStyle}>Recorded Sessions</div>
           <h2 style={sectionTitleStyle}>Lesson library.</h2>
           {loading ? <p style={mutedStyle}>Loading recordings...</p> : recordings.length === 0 ? <p style={mutedStyle}>No recordings uploaded yet.</p> : (
@@ -600,23 +609,15 @@ function classTypeOptionStyle(active: boolean): React.CSSProperties {
 
 const pageStyle: React.CSSProperties = { minHeight: "100vh", padding: "24px 16px 84px", background: "linear-gradient(180deg, #f5f7f4 0%, #eef2ef 100%)" };
 const shellStyle: React.CSSProperties = { maxWidth: 1280, margin: "0 auto", display: "grid", gap: 28 };
-const centerHeroStyle: React.CSSProperties = { textAlign: "center", padding: "38px 0 6px" };
 const eyebrowStyle: React.CSSProperties = { display: "inline-flex", padding: "8px 14px", borderRadius: 999, background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" };
-const titleStyle: React.CSSProperties = { margin: "18px auto 0", maxWidth: 980, fontSize: "clamp(2.8rem, 7vw, 5.2rem)", lineHeight: 0.96, letterSpacing: "-0.05em", color: "#142a1f", fontFamily: "var(--font-playfair), Georgia, serif" };
-const subtitleStyle: React.CSSProperties = { margin: "20px auto 0", maxWidth: 800, fontSize: 18, lineHeight: 1.75, color: "#53665d" };
-const heroGridStyle: React.CSSProperties = { display: "grid", gap: 22, alignItems: "center" };
-const imageCardStyle: React.CSSProperties = { position: "relative", minHeight: 460, borderRadius: 36, overflow: "hidden", background: "#dfe7e1", boxShadow: "0 26px 80px rgba(20,40,30,0.12)" };
-const textPanelStyle: React.CSSProperties = { borderRadius: 34, padding: "42px 34px", background: "rgba(255,255,255,0.84)", border: "1px solid rgba(20,42,31,0.08)", boxShadow: "0 18px 50px rgba(20,40,30,0.06)" };
 const smallLabelStyle: React.CSSProperties = { color: "#1a6045", fontSize: 12, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" };
 const sectionTitleStyle: React.CSSProperties = { marginTop: 14, fontSize: "clamp(2rem, 4vw, 3.4rem)", lineHeight: 1.02, color: "#142a1f", fontFamily: "var(--font-playfair), Georgia, serif" };
-const bodyStyle: React.CSSProperties = { marginTop: 18, color: "#556860", fontSize: 17, lineHeight: 1.8 };
 const panelStyle: React.CSSProperties = { borderRadius: 36, padding: "34px 30px", background: "rgba(255,255,255,0.84)", border: "1px solid rgba(20,42,31,0.08)", boxShadow: "0 22px 70px rgba(20,40,30,0.06)" };
 const formGridStyle: React.CSSProperties = { display: "grid", gap: 14, marginTop: 22 };
 const fieldStyle: React.CSSProperties = { display: "grid", gap: 6 };
 const fieldLabelStyle: React.CSSProperties = { fontSize: 13, color: "#475569", fontWeight: 700 };
 const inputStyle: React.CSSProperties = { padding: "14px 16px", borderRadius: 18, border: "1px solid rgba(20,42,31,0.10)", background: "rgba(255,255,255,0.94)", fontSize: 16, width: "100%" };
 const helpTextStyle: React.CSSProperties = { color: "#66776f", fontSize: 13, lineHeight: 1.6 };
-const chipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
 const softChipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "rgba(26,96,69,0.08)", color: "#1a6045", fontSize: 12, fontWeight: 800 };
 const warningChipStyle: React.CSSProperties = { borderRadius: 999, padding: "7px 10px", background: "#fffbeb", color: "#92400e", fontSize: 12, fontWeight: 800 };
 const actionRowStyle: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" };

@@ -47,7 +47,7 @@ export default function LiveClassActions({ classId, status, startDisabledReason 
   const startDisabled = Boolean(startDisabledReason) || busyAction !== null;
 
   return (
-    <section style={panelStyle}>
+    <section style={panelStyle} className="interior-panel education-interactive-panel">
       <div>
         <div style={smallLabelStyle}>Teacher Controls</div>
         <h2 style={headingStyle}>Manage live class</h2>

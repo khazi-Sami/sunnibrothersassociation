@@ -1,28 +1,9 @@
-import Image from "next/image";
-import Link from "next/link";
-
-const metrics = [
-  { value: "1,200+", label: "Students served" },
-  { value: "35+", label: "Teachers and mentors" },
-  { value: "12", label: "Years of service" },
-];
-
-const pillars = [
-  {
-    title: "Quran Education",
-    body: "Structured recitation, Tajweed, Hifz support, and disciplined teacher feedback in one calm learning flow.",
-  },
-  {
-    title: "Family Guidance",
-    body: "Parent support, values-based mentoring, and community care designed to strengthen the home as well as the classroom.",
-  },
-  {
-    title: "Meaningful Giving",
-    body: "Donation, zakat, and welfare efforts presented with clarity, trust, and transparent action points.",
-  },
-];
+import HomeExperience from "./components/HomeExperience";
 
 export default function Home() {
+  return <HomeExperience />;
+
+  /* Legacy composition retained below temporarily while the new experience is validated.
   return (
     <main
       style={{
@@ -41,7 +22,7 @@ export default function Home() {
             gridTemplateColumns: "1fr",
             padding: "54px 0 24px",
           }}
-          className="apple-hero"
+          className="legacy-hero"
         >
           <div style={{ textAlign: "center" }}>
             <div
@@ -194,7 +175,7 @@ export default function Home() {
                 Sacred Design Language
               </div>
               <h2 style={{ marginTop: 14, fontSize: "clamp(2.2rem, 4vw, 4rem)", lineHeight: 1, color: "#12261d" }}>
-                Calm like Apple.
+                Designed with intention.
                 <br />
                 Rooted in Islamic beauty.
               </h2>
@@ -296,7 +277,7 @@ export default function Home() {
 
       <style>{`
         @media (min-width: 1024px) {
-          .apple-hero {
+          .legacy-hero {
             grid-template-columns: minmax(0, 0.94fr) minmax(520px, 1.06fr) !important;
           }
           .feature-grid {
@@ -346,3 +327,5 @@ const outlineWhiteButton: { [key: string]: string | number } = {
   padding: "14px 20px",
   fontWeight: 800,
 };
+*/
+}

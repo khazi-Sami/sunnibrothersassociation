@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,26 +29,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div className="auth-apple-grid" style={gridStyle}>
-          <div style={imageCardStyle}>
-            <Image src="/medina-ceiling.jpg" alt="Architectural ceiling details in Madinah" fill style={{ objectFit: "cover" }} />
+    <main style={pageStyle} className="auth-page">
+      <section style={shellStyle} className="auth-shell-unified">
+        <div className="auth-grid" style={gridStyle}>
+          <div style={imageCardStyle} className="auth-visual">
+            <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
             <div style={imageOverlayStyle}>
-              <div style={overlayLabelStyle}>Welcome Back</div>
-              <div style={overlayTitleStyle}>A more peaceful login experience for your madrasa account.</div>
+              <div style={overlayLabelStyle}>Your learning space</div>
+              <div style={overlayTitleStyle}>Let every step toward knowledge bring the heart closer to Allah.</div>
             </div>
           </div>
 
-          <article style={formCardStyle}>
+          <article style={formCardStyle} className="auth-form-card">
             <div style={eyebrowStyle}>Login</div>
-            <h1 style={titleStyle}>Access your account.</h1>
-            <p style={subtitleStyle}>Dashboard, classes, and community tools in one place.</p>
+            <h1 style={titleStyle}>Welcome back.</h1>
+            <p style={subtitleStyle}>Pick up your classes, Quran reading, and community work where you left off.</p>
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14, marginTop: 28 }}>
-              <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
-              <button type="submit" disabled={loading} style={primaryButton}>{loading ? "Logging in..." : "Login"}</button>
+              <label className="auth-field-label" htmlFor="login-email">Email address</label>
+              <input id="login-email" autoComplete="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+              <label className="auth-field-label" htmlFor="login-password">Password</label>
+              <div className="auth-password-wrap">
+                <input id="login-password" autoComplete="current-password" required type={showPassword ? "text" : "password"} placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+                <button type="button" className="auth-password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+              </div>
+              <button type="submit" disabled={loading} style={primaryButton}>{loading ? "Logging in..." : <>Continue <ArrowRight size={17} /></>}</button>
             </form>
 
             {error ? <div style={errorStyle}>{error}</div> : null}
@@ -63,7 +70,7 @@ export default function LoginPage() {
 
       <style>{`
         @media (min-width: 980px) {
-          .auth-apple-grid {
+          .auth-grid {
             grid-template-columns: minmax(420px, 1.08fr) minmax(0, 0.92fr) !important;
           }
         }

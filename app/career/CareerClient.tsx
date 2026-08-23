@@ -36,26 +36,23 @@ export default function CareerClient() {
   const filteredJobs = useMemo(() => jobs.filter((job) => (dept === "All" || job.department === dept) && (type === "All" || job.type === type)), [dept, type]);
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
+    <main style={pageStyle} className="interior-page">
+      <section style={shellStyle} className="interior-shell">
+        <div style={centerHeroStyle} className="interior-intro">
           <div style={eyebrowStyle}>Career</div>
           <h1 style={titleStyle}>
             Work that serves
             <br />
             <span style={{ color: "#1a6045" }}>students, families, and deen.</span>
           </h1>
-          <p style={subtitleStyle}>
-            An Apple-like layout, but tailored for a respectful Islamic education institution seeking teachers, mentors,
-            and operations staff.
-          </p>
+          <p style={subtitleStyle}>Bring your knowledge, care, and professional skill to work that supports students, families, and community life.</p>
         </div>
 
-        <div className="career-hero-grid" style={heroGridStyle}>
-          <div style={imageCardStyle}>
-            <Image src="/green-dome-minaret.jpg" alt="Green Dome and minaret in Madinah" fill style={{ objectFit: "cover" }} />
+        <div className="career-hero-grid interior-feature" style={heroGridStyle}>
+          <div style={imageCardStyle} className="interior-feature__image">
+            <Image src="/green-dome-minaret.jpg" alt="The Green Dome and a minaret in Madinah" fill sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
           </div>
-          <div style={textPanelStyle}>
+          <div style={textPanelStyle} className="interior-feature__copy">
             <div style={smallLabelStyle}>Why Join SBA</div>
             <h2 style={sectionTitleStyle}>A more meaningful place to teach and serve.</h2>
             <p style={bodyStyle}>
@@ -69,11 +66,11 @@ export default function CareerClient() {
           </div>
         </div>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="interior-panel">
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "end" }}>
             <div>
               <div style={smallLabelStyle}>Open Roles</div>
-              <h2 style={sectionTitleStyle}>Filter roles with less friction.</h2>
+              <h2 style={sectionTitleStyle}>Find a place to contribute.</h2>
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {(["All", "Teaching", "Operations", "Community"] as const).map((d) => (
@@ -87,7 +84,7 @@ export default function CareerClient() {
 
           <div style={{ display: "grid", gap: 18, marginTop: 24 }}>
             {filteredJobs.map((job) => (
-              <article key={job.id} style={jobCardStyle}>
+              <article key={job.id} style={jobCardStyle} className="interior-card">
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "start" }}>
                   <div>
                     <h3 style={{ fontSize: 30, lineHeight: 1.02, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }}>{job.title}</h3>

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -10,6 +11,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,18 +35,24 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div className="auth-apple-grid" style={gridStyle}>
-          <article style={formCardStyle}>
+    <main style={pageStyle} className="auth-page">
+      <section style={shellStyle} className="auth-shell-unified">
+        <div className="auth-grid" style={gridStyle}>
+          <article style={formCardStyle} className="auth-form-card">
             <div style={eyebrowStyle}>Signup</div>
-            <h1 style={titleStyle}>Create your account.</h1>
-            <p style={subtitleStyle}>Join the platform for classes, Quran tools, donations, and community updates.</p>
+            <h1 style={titleStyle}>Begin with purpose.</h1>
+            <p style={subtitleStyle}>Create a space for classes, Quran reading, giving, and community connection.</p>
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14, marginTop: 28 }}>
-              <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
-              <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+              <label className="auth-field-label" htmlFor="signup-name">Your name</label>
+              <input id="signup-name" autoComplete="name" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+              <label className="auth-field-label" htmlFor="signup-email">Email address</label>
+              <input id="signup-email" autoComplete="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+              <label className="auth-field-label" htmlFor="signup-password">Password</label>
+              <div className="auth-password-wrap">
+                <input id="signup-password" autoComplete="new-password" required type={showPassword ? "text" : "password"} placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+                <button type="button" className="auth-password-toggle" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+              </div>
               <div style={roleWrapStyle}>
                 <label style={radioLabelStyle}>
                   <input type="radio" name="role" value="STUDENT" checked={role === "STUDENT"} onChange={() => setRole("STUDENT")} />
@@ -55,7 +63,7 @@ export default function SignupPage() {
                   Teacher
                 </label>
               </div>
-              <button type="submit" disabled={loading} style={primaryButton}>{loading ? "Creating..." : "Signup"}</button>
+              <button type="submit" disabled={loading} style={primaryButton}>{loading ? "Creating..." : <>Create account <ArrowRight size={17} /></>}</button>
             </form>
 
             {error ? <div style={errorStyle}>{error}</div> : null}
@@ -68,11 +76,11 @@ export default function SignupPage() {
             </p>
           </article>
 
-          <div style={imageCardStyle}>
-            <Image src="/quran-stand.jpg" alt="Quran on a wooden stand" fill style={{ objectFit: "cover" }} />
+          <div style={imageCardStyle} className="auth-visual">
+            <Image src="/quran-stand.jpg" alt="Quran on a wooden stand" fill sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
             <div style={imageOverlayStyle}>
               <div style={overlayLabelStyle}>Join the Community</div>
-              <div style={overlayTitleStyle}>A simpler starting point for students, families, and supporters.</div>
+              <div style={overlayTitleStyle}>A journey toward Allah begins with a sincere heart.</div>
             </div>
           </div>
         </div>
@@ -80,7 +88,7 @@ export default function SignupPage() {
 
       <style>{`
         @media (min-width: 980px) {
-          .auth-apple-grid {
+          .auth-grid {
             grid-template-columns: minmax(0, 0.92fr) minmax(420px, 1.08fr) !important;
           }
         }

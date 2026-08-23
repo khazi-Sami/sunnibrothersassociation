@@ -58,33 +58,33 @@ export default function ZakatClient() {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
+    <main style={pageStyle} className="interior-page">
+      <section style={shellStyle} className="interior-shell">
+        <div style={centerHeroStyle} className="interior-intro">
           <div style={eyebrowStyle}>Zakat Calculator</div>
           <h1 style={titleStyle}>
             Calculate zakat
             <br />
             <span style={{ color: "#1a6045" }}>with more clarity.</span>
           </h1>
-          <p style={subtitleStyle}>A cleaner interface for one of the most important obligations of wealth.</p>
+          <p style={subtitleStyle}>Enter your figures carefully and review a clear estimate of your zakatable wealth.</p>
         </div>
 
-        <div className="zakat-hero-grid" style={heroGridStyle}>
-          <div style={textPanelStyle}>
-            <div style={smallLabelStyle}>Simple Guidance</div>
-            <h2 style={sectionTitleStyle}>Enter assets, debts, and nisab in one calm flow.</h2>
+        <div className="zakat-hero-grid interior-feature" style={heroGridStyle}>
+          <div style={textPanelStyle} className="interior-feature__copy">
+            <div style={smallLabelStyle}>A guided calculation</div>
+            <h2 style={sectionTitleStyle}>Let giving become gratitude.</h2>
             <p style={bodyStyle}>
-              The calculator has been redesigned to feel less technical, while still keeping the same underlying logic.
+              Add your assets and debts, set the nisab threshold you follow, and review the estimate before seeking guidance where needed.
             </p>
           </div>
-          <div style={imageCardStyle}>
-            <Image src="/medina-ceiling.jpg" alt="Islamic architecture details in Madinah" fill style={{ objectFit: "cover" }} />
+          <div style={imageCardStyle} className="interior-feature__image">
+            <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
           </div>
         </div>
 
         <div className="zakat-main-grid" style={{ display: "grid", gap: 20 }}>
-          <section style={panelStyle}>
+          <section style={panelStyle} className="interior-panel">
             <div style={smallLabelStyle}>Your Assets</div>
             <h2 style={sectionTitleStyle}>Enter zakatable wealth.</h2>
             <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginTop: 22 }}>
@@ -114,11 +114,11 @@ export default function ZakatClient() {
                 <input type="checkbox" checked={useSilverNisabHint} onChange={(e) => setUseSilverNisabHint(e.target.checked)} />
                 Show silver-nisab hint
               </label>
-              {useSilverNisabHint ? <div style={noteStyle}>Many scholars recommend using the silver nisab as a more cautious threshold. You can enter your preferred nisab value here.</div> : null}
+              {useSilverNisabHint ? <div style={noteStyle}>Nisab values change with current metal prices. Enter the threshold you have verified for your calculation.</div> : null}
             </div>
           </section>
 
-          <section style={summaryPanelStyle}>
+          <section style={summaryPanelStyle} className="interior-summary">
             <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 12, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" }}>Summary</div>
             <h2 style={{ color: "white", marginTop: 12, fontSize: "clamp(2rem, 3vw, 3rem)", lineHeight: 1.04, fontFamily: "var(--font-playfair), Georgia, serif" }}>Your zakat result.</h2>
             <div style={{ display: "grid", gap: 12, marginTop: 22 }}>

@@ -1,5 +1,5 @@
-import QuranClient from "@/app/quran/QuranClient";
+import QuranExperience from "@/app/quran/QuranExperience";
 
 export default function QuranPage() {
-  return <QuranClient />;
+  return <QuranExperience />;
 }

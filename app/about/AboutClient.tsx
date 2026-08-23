@@ -25,9 +25,9 @@ const timeline = [
 
 export default function AboutClient() {
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
+    <main style={pageStyle} className="interior-page">
+      <section style={shellStyle} className="interior-shell">
+        <div style={centerHeroStyle} className="interior-intro">
           <div style={eyebrowStyle}>About Sunni Brothers Association</div>
           <h1 style={titleStyle}>
             A modern madrasa platform
@@ -35,21 +35,20 @@ export default function AboutClient() {
             <span style={{ color: "#1a6045" }}>with a sacred sense of purpose.</span>
           </h1>
           <p style={subtitleStyle}>
-            We exist to make Islamic education, character development, and community support feel more accessible,
-            beautiful, and trustworthy for students and families.
+            We bring Islamic education, character development, and community support closer to students and families.
           </p>
         </div>
 
-        <div className="about-hero-grid" style={heroGridStyle}>
-          <div style={imageCardStyle}>
-            <Image src="/medina-domes.jpg" alt="Madinah mosque domes" fill style={{ objectFit: "cover" }} />
+        <div className="about-hero-grid interior-feature" style={heroGridStyle}>
+          <div style={imageCardStyle} className="interior-feature__image">
+            <Image src="/medina-domes.jpg" alt="Mosque domes in Madinah" fill sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
           </div>
-          <div style={textPanelStyle}>
+          <div style={textPanelStyle} className="interior-feature__copy">
             <div style={smallLabelStyle}>Our Mission</div>
             <h2 style={sectionTitleStyle}>To nurture confident Muslims through knowledge, adab, and service.</h2>
             <p style={bodyStyle}>
-              Sunni Brothers Association combines the warmth of a trusted community madrasa with a cleaner, more
-              intuitive digital experience so that learning and community care feel easier to access.
+              Sunni Brothers Association carries the warmth of a trusted community madrasa into every class, act of
+              service, and relationship with the families we support.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24 }}>
               <Link href="/education" style={primaryButton}>Explore Education</Link>
@@ -60,14 +59,14 @@ export default function AboutClient() {
 
         <div style={threeColGridStyle}>
           {values.map((item) => (
-            <article key={item.title} style={cardStyle}>
+            <article key={item.title} style={cardStyle} className="interior-card">
               <h3 style={cardTitleStyle}>{item.title}</h3>
               <p style={cardBodyStyle}>{item.desc}</p>
             </article>
           ))}
         </div>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="interior-panel">
           <div style={smallLabelStyle}>Our Journey</div>
           <h2 style={sectionTitleStyle}>Steady growth, guided by what the community truly needs.</h2>
           <div style={{ display: "grid", gap: 16, marginTop: 24 }}>

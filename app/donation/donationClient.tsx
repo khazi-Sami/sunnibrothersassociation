@@ -120,40 +120,40 @@ export default function DonationClient() {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
-        <div style={centerHeroStyle}>
+    <main style={pageStyle} className="interior-page">
+      <section style={shellStyle} className="interior-shell">
+        <div style={centerHeroStyle} className="interior-intro">
           <div style={eyebrowStyle}>Donation</div>
           <h1 style={titleStyle}>
             Give with more trust,
             <br />
             <span style={{ color: "#1a6045" }}>clarity, and calm.</span>
           </h1>
-          <p style={subtitleStyle}>A cleaner donation experience for education, welfare, and zakat support.</p>
+          <p style={subtitleStyle}>Support education, welfare, and community care with a sincere contribution.</p>
         </div>
 
-        <div className="donation-hero-grid" style={heroGridStyle}>
-          <div style={textPanelStyle}>
-            <div style={smallLabelStyle}>Why This Design</div>
-            <h2 style={sectionTitleStyle}>Less noise. More confidence at the moment of giving.</h2>
+        <div className="donation-hero-grid interior-feature" style={heroGridStyle}>
+          <div style={textPanelStyle} className="interior-feature__copy">
+            <div style={smallLabelStyle}>Give with purpose</div>
+            <h2 style={sectionTitleStyle}>A beautiful heart leaves beauty wherever it serves.</h2>
             <p style={bodyStyle}>
-              The donation page now feels more premium and easier to scan while keeping the full Razorpay payment flow.
+              Choose the work you wish to support, enter your contribution, and continue to secure Razorpay checkout.
             </p>
           </div>
-          <div style={imageCardStyle}>
-            <Image src="/kaaba.jpg" alt="Kaaba in Makkah" fill style={{ objectFit: "cover" }} />
+          <div style={imageCardStyle} className="interior-feature__image">
+            <Image src="/kaaba.jpg" alt="The Kaaba in Makkah" fill sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
           </div>
         </div>
 
         <div className="donation-main-grid" style={{ display: "grid", gap: 20 }}>
-          <section style={panelStyle}>
+          <section style={panelStyle} className="interior-panel">
             <div style={smallLabelStyle}>Choose a Cause</div>
             <h2 style={sectionTitleStyle}>Support what matters most.</h2>
             <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginTop: 24 }}>
               {causes.map((c) => {
                 const active = c.id === selectedCause.id;
                 return (
-                  <button key={c.id} onClick={() => { setSelectedCause(c); setAmount(c.suggested ?? 500); }} style={causeCardStyle(active)}>
+                  <button key={c.id} type="button" aria-pressed={active} onClick={() => { setSelectedCause(c); setAmount(c.suggested ?? 500); }} style={causeCardStyle(active)}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "start" }}>
                       <div style={{ fontWeight: 800, color: "#173127", textAlign: "left" }}>{c.title}</div>
                       <span style={amountChipStyle}>{c.suggested ? formatINR(c.suggested) : "Any"}</span>
@@ -165,21 +165,21 @@ export default function DonationClient() {
             </div>
           </section>
 
-          <section style={panelStyle}>
+          <section style={panelStyle} className="interior-panel interior-panel--sticky">
             <div style={smallLabelStyle}>Checkout</div>
             <h2 style={sectionTitleStyle}>Complete your contribution.</h2>
             <div style={{ display: "grid", gap: 14, marginTop: 22 }}>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Donor name" style={inputStyle} />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={inputStyle} />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" style={inputStyle} />
-              <input type="number" min={minAmount} value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={inputStyle} />
+              <input aria-label="Donor name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Donor name" style={inputStyle} />
+              <input aria-label="Email address" autoComplete="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={inputStyle} />
+              <input aria-label="Phone number" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" style={inputStyle} />
+              <input aria-label="Contribution amount in rupees" type="number" min={minAmount} value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={inputStyle} />
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {quickAmounts.map((a) => (
                   <button key={a} type="button" onClick={() => setAmount(a)} style={quickButtonStyle}>{formatINR(a)}</button>
                 ))}
               </div>
-              <button onClick={handlePay} disabled={loading} style={primaryButton}>{loading ? "Processing..." : "Secure Payment Gateway"}</button>
-              <div style={noteStyle}>Funds are used for the selected cause. A receipt can be generated after payment.</div>
+              <button type="button" onClick={handlePay} disabled={loading} style={primaryButton}>{loading ? "Processing..." : `Continue with ${formatINR(amount || 0)}`}</button>
+              <div style={noteStyle}>Your payment is processed through Razorpay for the cause selected above.</div>
             </div>
           </section>
         </div>

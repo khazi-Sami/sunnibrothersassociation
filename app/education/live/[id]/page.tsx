@@ -94,14 +94,14 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
   }));
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
+    <main style={pageStyle} className="interior-page education-detail-page">
+      <section style={shellStyle} className="interior-shell education-detail-shell">
         <div style={topBarStyle}>
           <Link href="/education" style={secondaryButtonStyle}>Back to Education</Link>
           <span style={chipStyle}>{type.title}</span>
         </div>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="interior-panel education-detail-hero">
           <div style={smallLabelStyle}>{type.platform}</div>
           <h1 style={titleStyle}>{klass.title}</h1>
           <p style={metaStyle}>Teacher: {teacherName}</p>
@@ -133,7 +133,7 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
         ) : null}
 
         {klass.status === "LIVE" && klass.classType === "YOUTUBE_LIVE" ? (
-          <section style={panelStyle}>
+          <section style={panelStyle} className="interior-panel">
             <div style={liveRowStyle}>
               <LiveBadge />
               <span style={mutedStyle}>Watch live class</span>
@@ -158,7 +158,7 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
         ) : null}
 
         {klass.status === "LIVE" && klass.classType === "GOOGLE_MEET" ? (
-          <section style={panelStyle}>
+          <section style={panelStyle} className="interior-panel">
             <div style={liveRowStyle}>
               <LiveBadge />
               <span style={mutedStyle}>This class is conducted through Google Meet.</span>
@@ -212,9 +212,9 @@ export default async function StudentLiveClassPage({ params }: PageProps) {
 
 function AccessDenied() {
   return (
-    <main style={pageStyle}>
-      <section style={{ ...shellStyle, maxWidth: 760 }}>
-        <section style={panelStyle}>
+    <main style={pageStyle} className="interior-page education-detail-page">
+      <section style={{ ...shellStyle, maxWidth: 760 }} className="interior-shell education-detail-shell">
+        <section style={panelStyle} className="interior-panel education-detail-hero">
           <div style={smallLabelStyle}>Access denied</div>
           <h1 style={titleStyle}>You are not enrolled in this class.</h1>
           <p style={mutedStyle}>Only enrolled students, the assigned teacher, and admins can open this live class.</p>

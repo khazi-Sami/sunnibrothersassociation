@@ -54,10 +54,10 @@ export default async function RecordingPage({ params }: PageProps) {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={shellStyle}>
+    <main style={pageStyle} className="interior-page education-detail-page">
+      <section style={shellStyle} className="interior-shell education-detail-shell">
         <Link href="/education" style={secondaryButtonStyle}>Back to Education</Link>
-        <section style={panelStyle}>
+        <section style={panelStyle} className="interior-panel education-detail-hero">
           <div style={smallLabelStyle}>Recorded Session</div>
           <h1 style={titleStyle}>{recording.title}</h1>
           <p style={metaStyle}>Class: {recording.class.title}</p>
@@ -85,7 +85,7 @@ export default async function RecordingPage({ params }: PageProps) {
           </div>
         </section>
 
-        <section style={panelStyle}>
+        <section style={panelStyle} className="interior-panel">
           <div style={smallLabelStyle}>Class Q&A</div>
           <h2 style={sectionTitleStyle}>Questions</h2>
           <div style={questionListStyle}>
@@ -114,9 +114,9 @@ export default async function RecordingPage({ params }: PageProps) {
 
 function AccessDenied() {
   return (
-    <main style={pageStyle}>
-      <section style={{ ...shellStyle, maxWidth: 760 }}>
-        <section style={panelStyle}>
+    <main style={pageStyle} className="interior-page education-detail-page">
+      <section style={{ ...shellStyle, maxWidth: 760 }} className="interior-shell education-detail-shell">
+        <section style={panelStyle} className="interior-panel education-detail-hero">
           <div style={smallLabelStyle}>Access denied</div>
           <h1 style={titleStyle}>You cannot view this recording.</h1>
           <p style={bodyStyle}>Only enrolled students, the assigned teacher, and admins can open this recording.</p>

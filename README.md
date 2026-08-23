@@ -53,6 +53,18 @@ npm run dev
 
 Open http://localhost:3000
 
+## Architecture and Graft context
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the application architecture, request flows, data model, local setup, and operational notes.
+
+This repository is wired for [Graft](https://github.com/NanoNets/Graft), a local regenerable code-context graph for coding agents. The generated `graft/` directory is intentionally ignored; after cloning, run:
+
+```bash
+npx @nanonets/graft build
+```
+
+The repository-level agent wiring is in `AGENTS.md` and the MCP registration is in `opencode.json`. Use `npx @nanonets/graft map` or `npx @nanonets/graft ask "<question>" --source` to explore the codebase.
+
 ## Live Class Notes
 
 Teachers choose one class type when scheduling:
