@@ -25,9 +25,217 @@ model User {
   classesTaught      Class[]           @relation("TeacherClasses")
   recordingsUploaded Recording[]       @relation("UserRecordings")
   classAttendances   ClassAttendance[] @relation("StudentClassAttendance")
+  attendanceMarks    ClassAttendance[] @relation("AttendanceMarkers")
   questionsAsked     ClassQuestion[]   @relation("StudentClassQuestions")
+  studentProfile     StudentProfile?
+  teacherProfile     TeacherProfile?
+  adminNotifications AdminNotification[] @relation("NotificationActor")
+  familyMemberships   FamilyMember[]
+  assistanceRequests  FinancialAssistanceRequest[] @relation("AssistanceStudent")
+  reviewedAssistance  FinancialAssistanceRequest[] @relation("AssistanceReviewer")
+  salaryPayments      TeacherSalaryPayment[] @relation("TeacherSalary")
+  createdSalaryPayments TeacherSalaryPayment[] @relation("SalaryCreator")
+  relatedTransactions FinanceTransaction[] @relation("TransactionTeacher")
+  studentTransactions FinanceTransaction[] @relation("TransactionStudent")
+  createdTransactions FinanceTransaction[] @relation("TransactionCreator")
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+}
+
+model StudentProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  fullName              String
+  phone                 String?
+  dateOfBirth           DateTime?
+  schoolOrCollege       String?
+  gradeOrClass          String?
+  guardianName          String?
+  guardianPhone         String?
+  city                  String?
+  introducedBy          String?
+  likesAboutSba         String?
+  contributionInterest  String?
+  improvementSuggestion String?
+  learningInterests    String[] @default([])
+  learningGoal         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId              String?
+  family                Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
+}
+
+enum IncomeRange {
+  BELOW_10000
+  INR_10000_20000
+  INR_20000_30000
+  INR_30000_50000
+  INR_50000_100000
+  ABOVE_100000
+  PREFER_NOT_TO_SAY
+}
+enum AssistanceType {
+  SCHOOL_FEES
+  BOOKS
+  EDUCATION
+  EMERGENCY
+  OTHER
+}
+enum AssistanceStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  DECLINED
+  CLOSED
+}
+enum SalaryStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  ON_HOLD
+}
+enum FinanceType {
+  INCOME
+  EXPENSE
+}
+
+model Family {
+  id String @id @default(cuid())
+  familyName String?
+  primaryGuardianName String
+  primaryGuardianPhone String
+  primaryGuardianRelationship String
+  secondaryGuardianName String?
+  secondaryGuardianPhone String?
+  secondaryGuardianRelationship String?
+  city String
+  address String?
+  householdSize Int?
+  primaryOccupation String?
+  incomeRange IncomeRange
+  supportNotes String?
+  members FamilyMember[]
+  profiles StudentProfile[]
+  assistanceRequests FinancialAssistanceRequest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FamilyMember {
+  id String @id @default(cuid())
+  familyId String
+  userId String
+  relationship String
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([familyId, userId])
+  @@unique([userId])
+}
+
+model FinancialAssistanceRequest {
+  id String @id @default(cuid())
+  studentId String
+  familyId String?
+  assistanceType AssistanceType
+  summary String
+  requestedAmount Int?
+  approvedAmount Int?
+  status AssistanceStatus @default(PENDING)
+  adminNotes String?
+  reviewedById String?
+  reviewedAt DateTime?
+  student User @relation("AssistanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  family Family? @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("AssistanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([studentId, createdAt])
+}
+
+model TeacherSalaryPayment {
+  id String @id @default(cuid())
+  teacherId String
+  month Int
+  year Int
+  baseAmount Int
+  bonusAmount Int @default(0)
+  deductionAmount Int @default(0)
+  finalAmount Int
+  status SalaryStatus @default(PENDING)
+  paidAt DateTime?
+  paymentReference String?
+  notes String?
+  createdById String
+  teacher User @relation("TeacherSalary", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdBy User @relation("SalaryCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([teacherId, month, year])
+}
+
+model FinanceTransaction {
+  id String @id @default(cuid())
+  type FinanceType
+  category String
+  amount Int
+  transactionDate DateTime
+  description String
+  reference String?
+  relatedTeacherId String?
+  relatedStudentId String?
+  assistanceRequestId String?
+  createdById String
+  relatedTeacher User? @relation("TransactionTeacher", fields: [relatedTeacherId], references: [id], onDelete: SetNull)
+  relatedStudent User? @relation("TransactionStudent", fields: [relatedStudentId], references: [id], onDelete: SetNull)
+  createdBy User @relation("TransactionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([type, transactionDate])
+}
+
+enum TeacherStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model TeacherProfile {
+  id                 String        @id @default(cuid())
+  userId             String        @unique
+  fullName           String
+  phone              String?
+  city               String?
+  profileImage       String?
+  qualifications     String?
+  teachingExperience String?
+  subjects           String[]      @default([])
+  languages          String[]      @default([])
+  shortBio           String?
+  availability       String?
+  status             TeacherStatus @default(ACTIVE)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminNotification {
+  id          String   @id @default(cuid())
+  type        String
+  actorUserId String?
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  changedFields String[] @default([])
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  actor       User?    @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([isRead, createdAt])
 }
 
 enum ClassStatus {
@@ -120,10 +328,25 @@ model ClassAttendance {
   joinedAt   DateTime  @default(now())
   lastSeenAt DateTime?
   leftAt     DateTime?
+  status     AttendanceStatus @default(UNMARKED)
+  markedById String?
+  markedBy   User? @relation("AttendanceMarkers", fields: [markedById], references: [id], onDelete: SetNull)
+  markedAt   DateTime?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([classId, studentId])
   @@index([classId])
   @@index([studentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+  UNMARKED
 }
 
 model ClassQuestion {

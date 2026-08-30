@@ -5,25 +5,30 @@ const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash("Pass@123", 10);
+  if (process.env.NODE_ENV === "production") throw new Error("Demo seed is disabled in production");
+  const teacherEmail = process.env.DEMO_TEACHER_EMAIL;
+  const studentEmail = process.env.DEMO_STUDENT_EMAIL;
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (!teacherEmail || !studentEmail || !demoPassword) throw new Error("Set DEMO_TEACHER_EMAIL, DEMO_STUDENT_EMAIL, and DEMO_PASSWORD locally before running the demo seed");
+  const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const teacher = await prisma.user.upsert({
-    where: { email: "teacher@sba.local" },
+    where: { email: teacherEmail },
     update: { name: "Teacher One", role: Role.TEACHER },
     create: {
       name: "Teacher One",
-      email: "teacher@sba.local",
+      email: teacherEmail,
       password: passwordHash,
       role: Role.TEACHER,
     },
   });
 
   const student = await prisma.user.upsert({
-    where: { email: "student@sba.local" },
+    where: { email: studentEmail },
     update: { name: "Student One", role: Role.STUDENT },
     create: {
       name: "Student One",
-      email: "student@sba.local",
+      email: studentEmail,
       password: passwordHash,
       role: Role.STUDENT,
     },
@@ -81,7 +86,7 @@ async function main() {
     },
   });
 
-  console.log("Seed complete: teacher@sba.local / student@sba.local / password Pass@123");
+  console.log("Local demo seed complete");
 }
 
 main()

@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
 import { parseClassMediaInput } from "@/lib/education/videoLinks";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -25,7 +24,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
           id: true,
           title: true,
           enrollments: {
-            where: { studentId: session.user.id },
+            where: { studentId: user.id },
             select: { id: true },
           },
         },
@@ -37,7 +36,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
 
-  const isTeacher = session.user.role === "ADMIN" || klass.teacherId === session.user.id;
+  const isTeacher = user.role === "ADMIN" || (user.role === "TEACHER" && user.teacherProfile?.status === "ACTIVE" && klass.teacherId === user.id);
   const isEnrolled = klass.course.enrollments.length > 0;
 
   if (!isTeacher && !isEnrolled) {
@@ -69,13 +68,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+  if (!canTeach(user)) {
     return NextResponse.json({ error: "Only teachers can update classes" }, { status: 403 });
   }
 
@@ -92,7 +91,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
 
-  if (session.user.role === "TEACHER" && existing.teacherId !== session.user.id) {
+  if (user.role === "TEACHER" && existing.teacherId !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -133,7 +132,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
 
-  if (session.user.role === "TEACHER" && course.teacherId !== session.user.id) {
+  if (user.role === "TEACHER" && course.teacherId !== user.id) {
     return NextResponse.json({ error: "You can only move classes to your own courses" }, { status: 403 });
   }
 

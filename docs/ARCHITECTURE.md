@@ -60,7 +60,7 @@ Important API groups:
 - `/api/education/classes` and `/api/education/classes/[id]` — schedule, update, and inspect classes.
 - `/api/education/classes/[id]/start`, `/end`, `/cancel` — lifecycle transitions.
 - `/api/education/classes/[id]/questions` — read/ask questions with role and enrollment checks.
-- `/api/education/recordings` and `/api/education/upload` — recorded lesson metadata and uploads.
+- `/api/education/recordings` — authorized YouTube recording metadata. Internal video uploads are disabled.
 
 ## Other product areas
 
@@ -80,11 +80,13 @@ npm ci
 # create .env with DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
 npx prisma migrate deploy
 npx prisma generate
-node prisma/seed.js                 # optional demo data
+DEMO_TEACHER_EMAIL=example-teacher@example.com \
+DEMO_STUDENT_EMAIL=example-student@example.com \
+DEMO_PASSWORD='<set-locally>' node prisma/seed.js # optional local demo data
 npm run dev                         # opens on the first available port
 ```
 
-The seed credentials are `teacher@sba.local` and `student@sba.local`, both with password `Pass@123`; use them only in a local database.
+The optional seed requires locally supplied placeholder credentials and refuses to run when `NODE_ENV=production`. Never use production credentials or a production database.
 
 Useful checks:
 

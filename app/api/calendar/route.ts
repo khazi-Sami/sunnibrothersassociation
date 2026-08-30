@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { getCurrentDatabaseUser } from "@/lib/databaseAuth";
+import { getPrisma } from "@/lib/prisma";
+export async function GET() { const user = await getCurrentDatabaseUser(); if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 }); const where = user.role === "ADMIN" ? {} : user.role === "TEACHER" ? { teacherId: user.id } : { course: { enrollments: { some: { studentId: user.id } } } }; const classes = await getPrisma().class.findMany({ where, orderBy: { scheduledAt: "asc" }, select: { id: true, title: true, scheduledAt: true, durationMinutes: true, status: true, course: { select: { id: true, title: true } } } }); return NextResponse.json({ events: classes.map(c => ({ id: c.id, classId: c.id, title: c.title, start: c.scheduledAt, end: new Date(c.scheduledAt.getTime() + c.durationMinutes * 60000), status: c.status, course: c.course })) }); }

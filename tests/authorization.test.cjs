@@ -1,0 +1,23 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const ts = require("typescript");
+const source = fs.readFileSync(path.join(__dirname, "..", "lib", "authorization.ts"), "utf8");
+const moduleShim = { exports: {} };
+vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { module: moduleShim, exports: moduleShim.exports });
+const { isAdmin, isActiveTeacher, canTeach, ownsCourse, ownsClass, canAccessRecording } = moduleShim.exports;
+const admin = { id: "a", role: "ADMIN" };
+const active = { id: "t1", role: "TEACHER", teacherStatus: "ACTIVE" };
+const pending = { id: "t1", role: "TEACHER", teacherStatus: "PENDING" };
+const inactive = { id: "t1", role: "TEACHER", teacherStatus: "INACTIVE" };
+const student = { id: "s1", role: "STUDENT" };
+assert.equal(isAdmin({ ...admin, role: "STUDENT" }), false, "DB role overrides stale ADMIN claim");
+assert.equal(isActiveTeacher(active), true); assert.equal(canTeach(pending), false); assert.equal(canTeach(inactive), false); assert.equal(canTeach(admin), true);
+assert.equal(ownsCourse(active, { teacherId: "t1" }), true); assert.equal(ownsCourse(active, { teacherId: "t2" }), false); assert.equal(ownsCourse(pending, { teacherId: "t1" }), false);
+assert.equal(ownsClass(active, { teacherId: "t1" }), true); assert.equal(ownsClass(active, { teacherId: "t2" }), false);
+assert.equal(canAccessRecording(student, { teacherId: "t1", enrolledStudentIds: ["s1"] }), true); assert.equal(canAccessRecording({ ...student, id: "s2" }, { teacherId: "t1", enrolledStudentIds: ["s1"] }), false);
+assert.equal(canAccessRecording(active, { teacherId: "t1", enrolledStudentIds: [] }), true); assert.equal(canAccessRecording({ ...active, id: "t2" }, { teacherId: "t1", enrolledStudentIds: [] }), false); assert.equal(canAccessRecording(admin, { teacherId: "t2", enrolledStudentIds: [] }), true);
+assert.equal(canAccessRecording(null, { teacherId: "t1", enrolledStudentIds: ["s1"] }), false);
+console.log("authorization tests passed");

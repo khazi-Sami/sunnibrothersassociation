@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 
 export async function GET() {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role === "ADMIN") {
+  if (user.role === "ADMIN") {
     const courses = await prisma.course.findMany({
       orderBy: { createdAt: "desc" },
       include: { teacher: { select: { id: true, name: true, email: true } } },
@@ -19,9 +18,9 @@ export async function GET() {
     return NextResponse.json({ courses });
   }
 
-  if (session.user.role === "TEACHER") {
+  if (user.role === "TEACHER") {
     const courses = await prisma.course.findMany({
-      where: { teacherId: session.user.id },
+      where: { teacherId: user.id },
       orderBy: { createdAt: "desc" },
       include: { teacher: { select: { id: true, name: true, email: true } } },
     });
@@ -33,7 +32,7 @@ export async function GET() {
     include: {
       teacher: { select: { id: true, name: true, email: true } },
       enrollments: {
-        where: { studentId: session.user.id },
+        where: { studentId: user.id },
         select: { id: true },
       },
     },
@@ -52,13 +51,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+  if (!canTeach(user)) {
     return NextResponse.json({ error: "Only teachers can create courses" }, { status: 403 });
   }
 
@@ -69,16 +68,25 @@ export async function POST(req: Request) {
 
   const title = String(body.title ?? "").trim();
   const description = String(body.description ?? "").trim() || null;
+  const requestedTeacherId = String(body.teacherId ?? "").trim();
 
   if (!title) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
+  }
+
+  let teacherId = user.id;
+  if (user.role === "ADMIN") {
+    if (!requestedTeacherId) return NextResponse.json({ error: "teacherId is required for admin-created courses" }, { status: 400 });
+    const teacher = await prisma.user.findFirst({ where: { id: requestedTeacherId, role: "TEACHER" }, select: { id: true } });
+    if (!teacher) return NextResponse.json({ error: "Assigned user must be a teacher" }, { status: 400 });
+    teacherId = teacher.id;
   }
 
   const course = await prisma.course.create({
     data: {
       title,
       description,
-      teacherId: session.user.id,
+      teacherId,
     },
   });
 

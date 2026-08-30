@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+  if (!canTeach(user)) {
     return NextResponse.json({ error: "Only teachers can cancel classes" }, { status: 403 });
   }
 
@@ -21,7 +20,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
 
-  if (session.user.role === "TEACHER" && klass.teacherId !== session.user.id) {
+  if (user.role === "TEACHER" && klass.teacherId !== user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

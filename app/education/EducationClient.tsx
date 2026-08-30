@@ -10,6 +10,7 @@ type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
 type ClassType = "YOUTUBE_LIVE" | "GOOGLE_MEET";
 type ClassLifecycleAction = "start" | "end" | "cancel";
 type CourseItem = { id: string; title: string; description: string | null; teacher: { id: string; name: string | null; email: string }; isEnrolled?: boolean };
+type TeacherItem = { id: string; name: string | null; email: string };
 type ClassItem = { id: string; title: string; description: string | null; scheduledAt: string; durationMinutes: number; status: ClassStatus; classType: ClassType; youtubeVideoId: string | null; googleMeetUrl: string | null; teacher: { name: string | null; email: string }; course: { id: string; title: string } };
 type RecordingItem = { id: string; title: string; description: string | null; videoUrl: string; youtubeVideoId: string | null; thumbnailUrl: string | null; createdAt: string; class: { id: string; title: string; scheduledAt: string; course: { id: string; title: string } }; createdBy: { name: string | null; email: string } };
 
@@ -36,6 +37,8 @@ export default function EducationClient({ role }: { role: Role }) {
   const [error, setError] = useState<string | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
+  const [courseTeacherId, setCourseTeacherId] = useState("");
+  const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
@@ -53,7 +56,6 @@ export default function EducationClient({ role }: { role: Role }) {
   const [recordingTitle, setRecordingTitle] = useState("");
   const [recordingDescription, setRecordingDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
-  const [recordingFile, setRecordingFile] = useState<File | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
@@ -102,6 +104,10 @@ export default function EducationClient({ role }: { role: Role }) {
   }, [loadData]);
 
   useEffect(() => {
+    if (role === "ADMIN") fetch("/api/admin/teachers").then((response) => response.json()).then((data) => setTeachers((data.teachers ?? []).map((teacher: { id: string; name: string | null; email: string }) => teacher)));
+  }, [role]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       loadData(true).catch(() => undefined);
     }, 20000);
@@ -126,12 +132,13 @@ export default function EducationClient({ role }: { role: Role }) {
       const res = await fetch("/api/education/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: courseTitle, description: courseDescription }),
+        body: JSON.stringify({ title: courseTitle, description: courseDescription, ...(role === "ADMIN" ? { teacherId: courseTeacherId } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Unable to create course");
       setCourseTitle("");
       setCourseDescription("");
+      setCourseTeacherId("");
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to create course");
@@ -219,16 +226,8 @@ export default function EducationClient({ role }: { role: Role }) {
     setUploadingRecording(true);
     setError(null);
     try {
-      let finalVideoUrl = videoUrl.trim();
-      if (recordingFile) {
-        const fd = new FormData();
-        fd.append("file", recordingFile);
-        const uploadRes = await fetch("/api/education/upload", { method: "POST", body: fd });
-        const uploadData = await uploadRes.json().catch(() => ({}));
-        if (!uploadRes.ok) throw new Error(uploadData?.error ?? "File upload failed");
-        finalVideoUrl = uploadData.url;
-      }
-      if (!finalVideoUrl) throw new Error("Please upload a file or provide a YouTube recording link");
+      const finalVideoUrl = videoUrl.trim();
+      if (!finalVideoUrl) throw new Error("Please provide a YouTube recording link");
       const res = await fetch("/api/education/recordings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,7 +239,6 @@ export default function EducationClient({ role }: { role: Role }) {
       setRecordingTitle("");
       setRecordingDescription("");
       setVideoUrl("");
-      setRecordingFile(null);
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to add recording");
@@ -315,6 +313,7 @@ export default function EducationClient({ role }: { role: Role }) {
               <div style={formGridStyle}>
                 <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} required placeholder="Course title" style={inputStyle} />
                 <textarea value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} rows={3} placeholder="Course description" style={inputStyle} />
+                {role === "ADMIN" ? <select value={courseTeacherId} onChange={(e) => setCourseTeacherId(e.target.value)} required style={inputStyle}><option value="">Assign a teacher</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name || teacher.email}</option>)}</select> : null}
                 <button type="submit" disabled={creatingCourse} style={primaryButton}>{creatingCourse ? "Creating..." : "Create Course"}</button>
               </div>
             </form>
@@ -393,7 +392,7 @@ export default function EducationClient({ role }: { role: Role }) {
 
             <form onSubmit={handleUploadRecording} style={panelStyle}>
               <div style={smallLabelStyle}>Recordings</div>
-              <h2 style={sectionTitleStyle}>Upload a lesson.</h2>
+              <h2 style={sectionTitleStyle}>Add a YouTube recording.</h2>
               <div style={formGridStyle}>
                 <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} required style={inputStyle}>
                   <option value="">{teacherClasses.length === 0 ? "Schedule a class first" : "Select class"}</option>
@@ -402,7 +401,6 @@ export default function EducationClient({ role }: { role: Role }) {
                 <input value={recordingTitle} onChange={(e) => setRecordingTitle(e.target.value)} required placeholder="Recording title" style={inputStyle} />
                 <textarea rows={2} value={recordingDescription} onChange={(e) => setRecordingDescription(e.target.value)} placeholder="Description" style={inputStyle} />
                 <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="YouTube recording URL" style={inputStyle} />
-                <input type="file" accept="video/*" onChange={(e) => setRecordingFile(e.target.files?.[0] ?? null)} style={inputStyle} />
                 <button type="submit" disabled={uploadingRecording} style={primaryButton}>{uploadingRecording ? "Saving..." : "Save Recording"}</button>
               </div>
             </form>

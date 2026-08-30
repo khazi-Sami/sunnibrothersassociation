@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
 import { parseClassMediaInput } from "@/lib/education/videoLinks";
 
 export async function GET() {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +25,7 @@ export async function GET() {
     scheduledAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
   };
 
-  if (session.user.role === "ADMIN") {
+  if (user.role === "ADMIN") {
     const classes = await prisma.class.findMany({
       where: baseWhere,
       orderBy: { scheduledAt: "asc" },
@@ -38,9 +37,9 @@ export async function GET() {
     return NextResponse.json({ classes });
   }
 
-  if (session.user.role === "TEACHER") {
+  if (user.role === "TEACHER") {
     const classes = await prisma.class.findMany({
-      where: { ...baseWhere, teacherId: session.user.id },
+      where: { ...baseWhere, teacherId: user.id },
       orderBy: { scheduledAt: "asc" },
       include: {
         teacher: { select: { name: true, email: true } },
@@ -53,7 +52,7 @@ export async function GET() {
   const classes = await prisma.class.findMany({
     where: {
       ...baseWhere,
-      course: { enrollments: { some: { studentId: session.user.id } } },
+      course: { enrollments: { some: { studentId: user.id } } },
     },
     orderBy: { scheduledAt: "asc" },
     select: {
@@ -79,13 +78,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+  if (!canTeach(user)) {
     return NextResponse.json({ error: "Only teachers can schedule classes" }, { status: 403 });
   }
 
@@ -125,7 +124,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Course not found" }, { status: 404 });
   }
 
-  if (session.user.role === "TEACHER" && course.teacherId !== session.user.id) {
+  if (user.role === "TEACHER" && course.teacherId !== user.id) {
     return NextResponse.json({ error: "You can only schedule classes for your own course" }, { status: 403 });
   }
 
@@ -139,7 +138,7 @@ export async function POST(req: Request) {
       googleMeetUrl: media.value.googleMeetUrl,
       scheduledAt,
       durationMinutes,
-      teacherId: session.user.role === "ADMIN" ? course.teacherId : session.user.id,
+      teacherId: user.role === "ADMIN" ? course.teacherId : user.id,
     },
   });
 

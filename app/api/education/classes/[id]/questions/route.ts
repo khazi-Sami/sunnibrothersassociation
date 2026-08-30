@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser } from "@/lib/databaseAuth";
 import { autoExpireClassIfNeeded } from "@/lib/education/liveClasses";
 import { getPrisma } from "@/lib/prisma";
 
@@ -8,16 +7,16 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_: Request, { params }: RouteContext) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   await autoExpireClassIfNeeded(id);
 
-  const access = await getClassQuestionAccess(id, session.user.id, session.user.role);
+  const access = await getClassQuestionAccess(id, user.id, user.role, user.teacherProfile?.status);
   if (!access.klass) {
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
@@ -37,16 +36,16 @@ export async function GET(_: Request, { params }: RouteContext) {
 
 export async function POST(req: Request, { params }: RouteContext) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
   await autoExpireClassIfNeeded(id);
 
-  const access = await getClassQuestionAccess(id, session.user.id, session.user.role);
+  const access = await getClassQuestionAccess(id, user.id, user.role, user.teacherProfile?.status);
   if (!access.klass) {
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
@@ -67,14 +66,14 @@ export async function POST(req: Request, { params }: RouteContext) {
   }
 
   const created = await prisma.classQuestion.create({
-    data: { classId: id, studentId: session.user.id, question },
+    data: { classId: id, studentId: user.id, question },
     include: { student: { select: { id: true, name: true, email: true } } },
   });
 
   return NextResponse.json({ question: serializeQuestion(created) }, { status: 201 });
 }
 
-async function getClassQuestionAccess(classId: string, userId: string, role: string) {
+async function getClassQuestionAccess(classId: string, userId: string, role: string, teacherStatus?: string | null) {
   const prisma = getPrisma();
   const klass = await prisma.class.findUnique({
     where: { id: classId },
@@ -97,7 +96,7 @@ async function getClassQuestionAccess(classId: string, userId: string, role: str
     return { klass: null, canRead: false, canAsk: false };
   }
 
-  const isTeacher = role === "ADMIN" || klass.teacherId === userId;
+  const isTeacher = role === "ADMIN" || (role === "TEACHER" && teacherStatus === "ACTIVE" && klass.teacherId === userId);
   const isEnrolledStudent = role === "STUDENT" && klass.course.enrollments.length > 0;
 
   return {

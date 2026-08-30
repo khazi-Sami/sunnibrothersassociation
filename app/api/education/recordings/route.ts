@@ -1,23 +1,22 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 import { extractYouTubeVideoId, isYouTubeUrl, normalizeYouTubeWatchUrl } from "@/lib/education/videoLinks";
 
 export async function GET() {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const where =
-    session.user.role === "ADMIN"
+    user.role === "ADMIN"
       ? {}
-      : session.user.role === "TEACHER"
-        ? { class: { teacherId: session.user.id } }
-        : { class: { course: { enrollments: { some: { studentId: session.user.id } } } } };
+      : user.role === "TEACHER"
+        ? { class: { teacherId: user.id } }
+        : { class: { course: { enrollments: { some: { studentId: user.id } } } } };
 
   const recordings = await prisma.recording.findMany({
     where,
@@ -33,13 +32,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+  if (!canTeach(user)) {
     return NextResponse.json({ error: "Only teachers can upload recordings" }, { status: 403 });
   }
 
@@ -65,8 +64,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unsupported YouTube recording URL" }, { status: 400 });
   }
 
-  if (!youtubeVideoId && !videoUrl.startsWith("/uploads/")) {
-    return NextResponse.json({ error: "Use a YouTube recording URL or upload a video file" }, { status: 400 });
+  if (!youtubeVideoId) {
+    return NextResponse.json({ error: "Use a valid YouTube recording URL" }, { status: 400 });
   }
 
   const klass = await prisma.class.findUnique({ where: { id: classId } });
@@ -74,7 +73,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
 
-  if (session.user.role === "TEACHER" && klass.teacherId !== session.user.id) {
+  if (user.role === "TEACHER" && klass.teacherId !== user.id) {
     return NextResponse.json({ error: "You can only add recordings to your classes" }, { status: 403 });
   }
 
@@ -83,10 +82,10 @@ export async function POST(req: Request) {
       classId,
       title,
       description,
-      videoUrl: youtubeVideoId ? normalizeYouTubeWatchUrl(youtubeVideoId) : videoUrl,
+      videoUrl: normalizeYouTubeWatchUrl(youtubeVideoId),
       youtubeVideoId,
       thumbnailUrl,
-      createdById: session.user.id,
+      createdById: user.id,
     },
   });
 

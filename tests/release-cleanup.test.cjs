@@ -1,0 +1,9 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const assert = require("node:assert/strict"); const fs = require("node:fs"); const path = require("node:path"); const vm = require("node:vm"); const ts = require("typescript");
+const root = path.join(__dirname,".."); const source=fs.readFileSync(path.join(root,"lib/finance.ts"),"utf8"); const moduleShim={exports:{}}; vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:moduleShim,exports:moduleShim.exports});
+assert.equal(moduleShim.exports.finalSalaryAmount(10000,1000,500),10500); assert.throws(()=>moduleShim.exports.finalSalaryAmount(100,0,200)); const summary=moduleShim.exports.financeSummary(1000,400); assert.equal(summary.net,600); assert.equal(summary.income,1000); assert.equal(summary.expenses,400);
+assert.equal(fs.existsSync(path.join(root,"app/api/education/upload/route.ts")),false); assert.equal(fs.existsSync(path.join(root,"app/api/education/recordings/file/route.ts")),false);
+const education=fs.readFileSync(path.join(root,"app/education/EducationClient.tsx"),"utf8"); assert.equal(education.includes('type="file"'),false); assert.equal(education.includes("/api/education/upload"),false);
+const calendar=fs.readFileSync(path.join(root,"app/api/calendar/route.ts"),"utf8"); assert.equal(calendar.includes("googleMeetUrl"),false);
+const tracked=fs.readFileSync(path.join(root,"prisma/seed.js"),"utf8")+fs.readFileSync(path.join(root,"docs/ARCHITECTURE.md"),"utf8")+fs.readFileSync(path.join(root,"docs/PROJECT_STATUS.md"),"utf8"); assert.equal(tracked.includes("Pass"+"@123"),false); assert.equal(tracked.includes("teacher"+"@sba.local"),false); assert.equal(tracked.includes("student"+"@sba.local"),false);
+console.log("release cleanup tests passed");

@@ -1,0 +1,28 @@
+CREATE TYPE "IncomeRange" AS ENUM ('BELOW_10000','INR_10000_20000','INR_20000_30000','INR_30000_50000','INR_50000_100000','ABOVE_100000','PREFER_NOT_TO_SAY');
+CREATE TYPE "AssistanceType" AS ENUM ('SCHOOL_FEES','BOOKS','EDUCATION','EMERGENCY','OTHER');
+CREATE TYPE "AssistanceStatus" AS ENUM ('PENDING','UNDER_REVIEW','APPROVED','PARTIALLY_APPROVED','DECLINED','CLOSED');
+CREATE TYPE "SalaryStatus" AS ENUM ('PENDING','PARTIALLY_PAID','PAID','ON_HOLD');
+CREATE TYPE "FinanceType" AS ENUM ('INCOME','EXPENSE');
+
+CREATE TABLE "Family" ("id" TEXT NOT NULL,"familyName" TEXT,"primaryGuardianName" TEXT NOT NULL,"primaryGuardianPhone" TEXT NOT NULL,"primaryGuardianRelationship" TEXT NOT NULL,"secondaryGuardianName" TEXT,"secondaryGuardianPhone" TEXT,"secondaryGuardianRelationship" TEXT,"city" TEXT NOT NULL,"address" TEXT,"householdSize" INTEGER,"primaryOccupation" TEXT,"incomeRange" "IncomeRange" NOT NULL,"supportNotes" TEXT,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "Family_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "FamilyMember" ("id" TEXT NOT NULL,"familyId" TEXT NOT NULL,"userId" TEXT NOT NULL,"relationship" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,CONSTRAINT "FamilyMember_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "FinancialAssistanceRequest" ("id" TEXT NOT NULL,"studentId" TEXT NOT NULL,"familyId" TEXT,"assistanceType" "AssistanceType" NOT NULL,"summary" TEXT NOT NULL,"requestedAmount" INTEGER,"approvedAmount" INTEGER,"status" "AssistanceStatus" NOT NULL DEFAULT 'PENDING',"adminNotes" TEXT,"reviewedById" TEXT,"reviewedAt" TIMESTAMP(3),"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "FinancialAssistanceRequest_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "TeacherSalaryPayment" ("id" TEXT NOT NULL,"teacherId" TEXT NOT NULL,"month" INTEGER NOT NULL,"year" INTEGER NOT NULL,"baseAmount" INTEGER NOT NULL,"bonusAmount" INTEGER NOT NULL DEFAULT 0,"deductionAmount" INTEGER NOT NULL DEFAULT 0,"finalAmount" INTEGER NOT NULL,"status" "SalaryStatus" NOT NULL DEFAULT 'PENDING',"paidAt" TIMESTAMP(3),"paymentReference" TEXT,"notes" TEXT,"createdById" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "TeacherSalaryPayment_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "FinanceTransaction" ("id" TEXT NOT NULL,"type" "FinanceType" NOT NULL,"category" TEXT NOT NULL,"amount" INTEGER NOT NULL,"transactionDate" TIMESTAMP(3) NOT NULL,"description" TEXT NOT NULL,"reference" TEXT,"relatedTeacherId" TEXT,"relatedStudentId" TEXT,"assistanceRequestId" TEXT,"createdById" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,CONSTRAINT "FinanceTransaction_pkey" PRIMARY KEY ("id"));
+ALTER TABLE "StudentProfile" ADD COLUMN "familyId" TEXT;
+CREATE UNIQUE INDEX "FamilyMember_familyId_userId_key" ON "FamilyMember"("familyId","userId");
+CREATE UNIQUE INDEX "FamilyMember_userId_key" ON "FamilyMember"("userId");
+CREATE UNIQUE INDEX "TeacherSalaryPayment_teacherId_month_year_key" ON "TeacherSalaryPayment"("teacherId","month","year");
+CREATE INDEX "FinancialAssistanceRequest_studentId_createdAt_idx" ON "FinancialAssistanceRequest"("studentId","createdAt");
+CREATE INDEX "FinanceTransaction_type_transactionDate_idx" ON "FinanceTransaction"("type","transactionDate");
+ALTER TABLE "FamilyMember" ADD CONSTRAINT "FamilyMember_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "Family"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FamilyMember" ADD CONSTRAINT "FamilyMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "StudentProfile" ADD CONSTRAINT "StudentProfile_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "Family"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "FinancialAssistanceRequest" ADD CONSTRAINT "FinancialAssistanceRequest_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FinancialAssistanceRequest" ADD CONSTRAINT "FinancialAssistanceRequest_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "Family"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "FinancialAssistanceRequest" ADD CONSTRAINT "FinancialAssistanceRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TeacherSalaryPayment" ADD CONSTRAINT "TeacherSalaryPayment_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TeacherSalaryPayment" ADD CONSTRAINT "TeacherSalaryPayment_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "FinanceTransaction" ADD CONSTRAINT "FinanceTransaction_relatedTeacherId_fkey" FOREIGN KEY ("relatedTeacherId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "FinanceTransaction" ADD CONSTRAINT "FinanceTransaction_relatedStudentId_fkey" FOREIGN KEY ("relatedStudentId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "FinanceTransaction" ADD CONSTRAINT "FinanceTransaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

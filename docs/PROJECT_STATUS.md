@@ -112,7 +112,7 @@ Remaining work:
 
 #### 2. Replace local recording storage with durable storage
 
-`app/api/education/upload/route.ts` writes uploaded bytes directly to `public/uploads/recordings` on the application filesystem. This is acceptable for a local demo but is unsafe or ephemeral on most serverless/container deployments.
+Internal recording uploads are disabled. Recorded lessons use authorized YouTube URLs, while Google Meet remains live-only and requires no application-hosted recording storage. Legacy local references, if any exist in deployed data, require a separate manual inventory and cleanup.
 
 Remaining work:
 
@@ -198,7 +198,7 @@ Review every API route for consistent error handling and explicit authorization.
 
 - The current dev server used port `3001` because port `3000` was already occupied.
 - A local `DATABASE_URL` was supplied only for build/dev startup; no PostgreSQL service was available to exercise database-backed routes.
-- The demo seed password (`Pass@123`) is for local testing only and must never be reused in a shared environment.
+- Demo seed credentials must be supplied through local-only `DEMO_*` environment variables and must never be reused in a shared environment.
 - Graft's generated `graft/` directory is a local cache. It is not a committed architecture artifact and must be rebuilt after cloning or major code changes.
 
 ## Recommended next work sequence

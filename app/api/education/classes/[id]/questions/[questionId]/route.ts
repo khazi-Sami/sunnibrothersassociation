@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentDatabaseUser, canTeach } from "@/lib/databaseAuth";
 import { getPrisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string; questionId: string }> };
 
 export async function PATCH(req: Request, { params }: RouteContext) {
   const prisma = getPrisma();
-  const session = await getServerSession(authOptions);
+  const user = await getCurrentDatabaseUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,7 +22,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Class not found" }, { status: 404 });
   }
 
-  const canManage = session.user.role === "ADMIN" || klass.teacherId === session.user.id;
+  const canManage = user.role === "ADMIN" || (canTeach(user) && klass.teacherId === user.id);
   if (!canManage) {
     return NextResponse.json({ error: "Only the teacher can update questions" }, { status: 403 });
   }
