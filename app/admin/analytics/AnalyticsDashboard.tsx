@@ -8,7 +8,6 @@ import {
   CalendarRange,
   CircleDollarSign,
   Clock3,
-  ExternalLink,
   GraduationCap,
   HeartHandshake,
   MonitorSmartphone,
@@ -83,13 +82,8 @@ export default function AnalyticsDashboard({ data }: { data: AnalyticsDashboardD
   ];
 
   return <main className="admin-analytics-page"><div className="admin-analytics-shell">
-    <header className="admin-analytics-topbar">
-      <div className="admin-analytics-brand"><span className="admin-analytics-brand-mark">SBA</span><div><strong>Community operations</strong><small>Administration workspace</small></div></div>
-      <nav aria-label="Analytics admin navigation"><Link href="/dashboard">Overview</Link><Link href="/education">Education</Link><span aria-current="page">Analytics</span><Link href="/" target="_blank" rel="noreferrer">Public site <ExternalLink size={13} /></Link></nav>
-    </header>
-
     <section className="admin-analytics-intro">
-      <div><Link href="/dashboard" className="admin-analytics-back"><ArrowLeft size={15} /> Back to dashboard</Link><div className="admin-analytics-kicker"><Sparkles size={14} /> Clear signals, respectful measurement</div><h1>Community analytics</h1><p>See how people discover Quran, education, and community support—without exposing identities or profiling faith.</p></div>
+      <div><Link href="/admin" className="admin-analytics-back"><ArrowLeft size={15} /> Back to admin</Link><div className="admin-analytics-kicker"><Sparkles size={14} /> Clear signals, respectful measurement</div><h1>Community analytics</h1><p>See how people discover Quran, education, and community support—without exposing identities or profiling faith.</p></div>
       <div className="admin-analytics-intro-actions"><span className="admin-analytics-status"><i className={data.dbReady ? "is-live" : ""} />{data.dbReady ? "Data connected" : "Awaiting database"}</span><span className="admin-analytics-privacy"><ShieldCheck size={16} /> Privacy-first</span></div>
     </section>
 

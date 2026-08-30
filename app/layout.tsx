@@ -1,4 +1,4 @@
-import "./globals.css";
+import "./authenticated.css";
 import Providers from "./providers";
 import Navbar from "./components/Navbar";
 import SiteFooter from "./components/SiteFooter";

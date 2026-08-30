@@ -50,7 +50,7 @@ function BrandMark() {
 }
 
 function AccountLinks({ role, mobile, onClose }: { role: "ADMIN" | "TEACHER" | "STUDENT"; mobile?: boolean; onClose: () => void }) {
-  const dashboardHref = role === "ADMIN" ? "/dashboard" : "/education";
+  const dashboardHref = role === "ADMIN" ? "/admin" : "/education";
   return <div className={mobile ? "site-nav__account-links" : "site-nav__account-menu"}>
     <span className="site-nav__account-role">{role}</span>
     <Link href={dashboardHref} onClick={onClose}>{role === "ADMIN" ? "Admin Dashboard" : role === "TEACHER" ? "My Classes" : "My Classes / Education"}</Link>

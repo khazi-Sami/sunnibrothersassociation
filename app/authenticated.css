@@ -1,0 +1,6 @@
+/*
+ * Keep the application stylesheet behind a stable root entry. This makes
+ * authenticated-product additions part of the same explicit CSS dependency
+ * instead of relying on a stale deployment artifact for globals.css.
+ */
+@import "./globals.css";
