@@ -41,7 +41,7 @@ export default function AboutClient() {
 
         <div className="about-hero-grid interior-feature" style={heroGridStyle}>
           <div style={imageCardStyle} className="interior-feature__image">
-            <Image src="/medina-domes.jpg" alt="Mosque domes in Madinah" fill sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
+            <Image src="/medina-domes.jpg" alt="Mosque domes in Madinah" fill priority sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
           </div>
           <div style={textPanelStyle} className="interior-feature__copy">
             <div style={smallLabelStyle}>Our Mission</div>

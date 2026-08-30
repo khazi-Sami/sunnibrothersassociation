@@ -20,7 +20,7 @@ function Field({ label, value, onChange, type = "text", required = false }: { la
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null); const [form, setForm] = useState<any>({}); const [family, setFamily] = useState<any>({ incomeRange: "PREFER_NOT_TO_SAY" });
   const [message, setMessage] = useState(""); const [error, setError] = useState(""); const [saving, setSaving] = useState(false);
-  useEffect(() => { fetch("/api/profile").then(r => r.json()).then(data => { if (!data.user) return setError(data.error || "Unable to load profile"); setUser(data.user); const profile = data.profile || { fullName: data.user.name || "" }; setForm({ ...profile, dateOfBirth: profile.dateOfBirth ? String(profile.dateOfBirth).slice(0, 10) : "" }); setFamily(profile.family || { incomeRange: "PREFER_NOT_TO_SAY" }); }).catch(() => setError("Unable to load profile")); }, []);
+  useEffect(() => { fetch("/api/profile").then(async response => { if (response.status === 401) { window.location.assign("/login"); return null; } return response.json(); }).then(data => { if (!data) return; if (!data.user) return setError(data.error || "Unable to load profile"); setUser(data.user); const profile = data.profile || { fullName: data.user.name || "" }; setForm({ ...profile, dateOfBirth: profile.dateOfBirth ? String(profile.dateOfBirth).slice(0, 10) : "" }); setFamily(profile.family || { incomeRange: "PREFER_NOT_TO_SAY" }); }).catch(() => setError("Unable to load profile")); }, []);
   const update = (key: string, value: unknown) => setForm((old: any) => ({ ...old, [key]: value }));
   const updateFamily = (key: string, value: unknown) => setFamily((old: any) => ({ ...old, [key]: value }));
 

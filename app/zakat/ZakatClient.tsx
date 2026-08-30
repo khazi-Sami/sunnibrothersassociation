@@ -82,7 +82,7 @@ export default function ZakatClient() {
             </p>
           </div>
           <div style={imageCardStyle} className="interior-feature__image">
-            <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
+          <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill priority sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
           </div>
         </div>
 

@@ -33,7 +33,7 @@ export default function LoginPage() {
       <section style={shellStyle} className="auth-shell-unified">
         <div className="auth-grid" style={gridStyle}>
           <div style={imageCardStyle} className="auth-visual">
-            <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
+            <Image src="/medina-ceiling.jpg" alt="Ornamental ceiling detail in Madinah" fill priority sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
             <div style={imageOverlayStyle}>
               <div style={overlayLabelStyle}>Your learning space</div>
               <div style={overlayTitleStyle}>Let every step toward knowledge bring the heart closer to Allah.</div>

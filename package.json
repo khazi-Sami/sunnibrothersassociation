@@ -13,6 +13,7 @@
     "test:authorization": "node tests/authorization.test.cjs",
     "test:family-assistance": "node tests/family-assistance.test.cjs",
     "test:release-cleanup": "node tests/release-cleanup.test.cjs",
+    "test:admin-crud": "node tests/admin-crud.test.cjs",
     "lint": "eslint",
     "prisma:seed": "node prisma/seed.js"
   },

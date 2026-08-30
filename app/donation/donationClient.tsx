@@ -145,7 +145,7 @@ export default function DonationClient() {
             </p>
           </div>
           <div style={imageCardStyle} className="interior-feature__image">
-            <Image src="/kaaba.jpg" alt="The Kaaba in Makkah" fill sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
+              <Image src="/kaaba.jpg" alt="The Kaaba in Makkah" fill priority sizes="(max-width: 979px) 100vw, 55vw" style={{ objectFit: "cover" }} />
           </div>
         </div>
 

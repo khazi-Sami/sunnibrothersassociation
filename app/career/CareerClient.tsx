@@ -50,7 +50,7 @@ export default function CareerClient() {
 
         <div className="career-hero-grid interior-feature" style={heroGridStyle}>
           <div style={imageCardStyle} className="interior-feature__image">
-            <Image src="/green-dome-minaret.jpg" alt="The Green Dome and a minaret in Madinah" fill sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
+          <Image src="/green-dome-minaret.jpg" alt="The Green Dome and a minaret in Madinah" fill priority sizes="(max-width: 979px) 100vw, 52vw" style={{ objectFit: "cover" }} />
           </div>
           <div style={textPanelStyle} className="interior-feature__copy">
             <div style={smallLabelStyle}>Why Join SBA</div>

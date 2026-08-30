@@ -153,3 +153,5 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   return NextResponse.json({ class: updated });
 }
+
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) { const user=await getCurrentDatabaseUser(); if(!user)return NextResponse.json({error:"Unauthorized"},{status:401}); if(user.role!=="ADMIN")return NextResponse.json({error:"Forbidden"},{status:403}); const {id}=await params; const prisma=getPrisma(); const klass=await prisma.class.findUnique({where:{id},select:{_count:{select:{attendances:true,questions:true,recordings:true}}}}); if(!klass)return NextResponse.json({error:"Class not found"},{status:404}); const history=Object.values(klass._count).reduce((sum,value)=>sum+value,0); if(history){await prisma.class.update({where:{id},data:{status:"CANCELLED"}});return NextResponse.json({ok:true,action:"cancelled",message:"Class history was preserved and the class was cancelled."});} await prisma.class.delete({where:{id}});return NextResponse.json({ok:true,action:"deleted"}); }

@@ -66,7 +66,7 @@ export default function SignupPage() {
           </article>
 
           <div style={imageCardStyle} className="auth-visual">
-            <Image src="/quran-stand.jpg" alt="Quran on a wooden stand" fill sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
+              <Image src="/quran-stand.jpg" alt="Quran on a wooden stand" fill priority sizes="(max-width: 979px) 100vw, 54vw" style={{ objectFit: "cover" }} />
             <div style={imageOverlayStyle}>
               <div style={overlayLabelStyle}>Join the Community</div>
               <div style={overlayTitleStyle}>A journey toward Allah begins with a sincere heart.</div>

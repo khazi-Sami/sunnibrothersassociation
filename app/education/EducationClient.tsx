@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, CalendarDays, CirclePlay, Radio, Settings2 } from "lucide-react";
+import { BookOpenCheck, CalendarDays, CirclePlay, Pencil, Radio, Settings2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAnalytics } from "@/app/components/AnalyticsProvider";
+import { SbaConfirmDialog } from "@/app/components/sba/SbaUi";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT";
 type ClassStatus = "SCHEDULED" | "LIVE" | "ENDED" | "CANCELLED";
@@ -38,6 +39,7 @@ export default function EducationClient({ role }: { role: Role }) {
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
   const [courseTeacherId, setCourseTeacherId] = useState("");
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState("");
@@ -57,6 +59,9 @@ export default function EducationClient({ role }: { role: Role }) {
   const [recordingDescription, setRecordingDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [uploadingRecording, setUploadingRecording] = useState(false);
+  const [managerPanel, setManagerPanel] = useState<"course" | "class" | "recording" | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "course" | "class"; id: string; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) {
@@ -130,21 +135,44 @@ export default function EducationClient({ role }: { role: Role }) {
     setError(null);
     try {
       const res = await fetch("/api/education/courses", {
-        method: "POST",
+        method: editingCourseId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: courseTitle, description: courseDescription, ...(role === "ADMIN" ? { teacherId: courseTeacherId } : {}) }),
+        body: JSON.stringify({ ...(editingCourseId ? { id: editingCourseId } : {}), title: courseTitle, description: courseDescription, ...(role === "ADMIN" ? { teacherId: courseTeacherId } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Unable to create course");
+      if (!res.ok) throw new Error(data?.error ?? `Unable to ${editingCourseId ? "update" : "create"} course`);
       setCourseTitle("");
       setCourseDescription("");
       setCourseTeacherId("");
+      setEditingCourseId(null);
       await loadData();
+      setManagerPanel(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to create course");
     } finally {
       setCreatingCourse(false);
     }
+  }
+
+  function beginEditCourse(course: CourseItem) {
+    setEditingCourseId(course.id);
+    setCourseTitle(course.title);
+    setCourseDescription(course.description ?? "");
+    setCourseTeacherId(course.teacher.id);
+    setManagerPanel("course");
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError(null);
+    const url = deleteTarget.type === "course" ? `/api/education/courses?id=${encodeURIComponent(deleteTarget.id)}` : `/api/education/classes/${encodeURIComponent(deleteTarget.id)}`;
+    const response = await fetch(url, { method: "DELETE" });
+    const data = await response.json().catch(() => ({}));
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (!response.ok) return setError(data?.error ?? `Unable to delete ${deleteTarget.type}`);
+    await loadData();
   }
 
   async function handleEnroll(courseId: string) {
@@ -192,6 +220,7 @@ export default function EducationClient({ role }: { role: Role }) {
       if (!res.ok) throw new Error(data?.error ?? "Unable to save class");
       resetClassForm();
       await loadData();
+      setManagerPanel(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save class");
     } finally {
@@ -240,6 +269,7 @@ export default function EducationClient({ role }: { role: Role }) {
       setRecordingDescription("");
       setVideoUrl("");
       await loadData();
+      setManagerPanel(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to add recording");
     } finally {
@@ -305,20 +335,22 @@ export default function EducationClient({ role }: { role: Role }) {
           )}
         </section>
 
-        {canManageClasses && (
-          <div className="edu-form-grid education-management" style={{ display: "grid", gap: 20 }}>
-            <form onSubmit={handleCreateCourse} style={panelStyle}>
+        {canManageClasses ? <div className="sba-toolbar education-management"><div><strong>Teaching workspace</strong><p style={{marginTop:3,color:"#6c7d74",fontSize:12}}>Create only when you need to; keep the schedule in focus.</p></div><div className="sba-toolbar-group"><button className="site-btn-secondary" onClick={() => { setEditingCourseId(null); setCourseTitle(""); setCourseDescription(""); setCourseTeacherId(""); setManagerPanel("course"); }}>New course</button><button className="site-btn-primary" onClick={() => { resetClassForm(); setManagerPanel("class"); }}>Schedule class</button><button className="site-btn-secondary" onClick={() => setManagerPanel("recording")}>Add YouTube recording</button></div></div> : null}
+
+        {canManageClasses && managerPanel ? (
+          <div className="sba-dialog-backdrop" onMouseDown={() => setManagerPanel(null)}><div className="sba-dialog" onMouseDown={(event) => event.stopPropagation()}>
+            {managerPanel === "course" ? <form onSubmit={handleCreateCourse}>
               <div style={smallLabelStyle}>Courses</div>
-              <h2 style={sectionTitleStyle}>Create course.</h2>
+              <h2 style={sectionTitleStyle}>{editingCourseId ? "Edit course." : "Create course."}</h2>
               <div style={formGridStyle}>
                 <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} required placeholder="Course title" style={inputStyle} />
                 <textarea value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} rows={3} placeholder="Course description" style={inputStyle} />
                 {role === "ADMIN" ? <select value={courseTeacherId} onChange={(e) => setCourseTeacherId(e.target.value)} required style={inputStyle}><option value="">Assign a teacher</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name || teacher.email}</option>)}</select> : null}
-                <button type="submit" disabled={creatingCourse} style={primaryButton}>{creatingCourse ? "Creating..." : "Create Course"}</button>
+                <button type="submit" disabled={creatingCourse} style={primaryButton}>{creatingCourse ? "Saving..." : editingCourseId ? "Save Course" : "Create Course"}</button>
               </div>
-            </form>
+            </form> : null}
 
-            <form id="create-live-class" onSubmit={handleSaveClass} style={panelStyle}>
+            {managerPanel === "class" ? <form id="create-live-class" onSubmit={handleSaveClass}>
               <div style={smallLabelStyle}>Teacher Dashboard</div>
               <h2 style={sectionTitleStyle}>{editingClassId ? "Edit live class." : "Create live class."}</h2>
               <div style={formGridStyle}>
@@ -388,9 +420,9 @@ export default function EducationClient({ role }: { role: Role }) {
                   {editingClassId ? <button type="button" onClick={resetClassForm} style={secondaryButton}>Cancel Edit</button> : null}
                 </div>
               </div>
-            </form>
+            </form> : null}
 
-            <form onSubmit={handleUploadRecording} style={panelStyle}>
+            {managerPanel === "recording" ? <form onSubmit={handleUploadRecording}>
               <div style={smallLabelStyle}>Recordings</div>
               <h2 style={sectionTitleStyle}>Add a YouTube recording.</h2>
               <div style={formGridStyle}>
@@ -403,9 +435,10 @@ export default function EducationClient({ role }: { role: Role }) {
                 <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="YouTube recording URL" style={inputStyle} />
                 <button type="submit" disabled={uploadingRecording} style={primaryButton}>{uploadingRecording ? "Saving..." : "Save Recording"}</button>
               </div>
-            </form>
-          </div>
-        )}
+            </form> : null}
+            <div className="sba-dialog-actions"><button type="button" className="site-btn-secondary" onClick={() => setManagerPanel(null)}>Close</button></div>
+          </div></div>
+        ) : null}
 
         <section style={panelStyle} className="education-section">
           <div style={smallLabelStyle}>Courses</div>
@@ -417,6 +450,7 @@ export default function EducationClient({ role }: { role: Role }) {
                   <h3 style={{ fontSize: 24, lineHeight: 1.04, color: "#173127", fontFamily: "var(--font-playfair), Georgia, serif" }} onClick={() => track("course_viewed", { resourceId: course.id, metadata: { resourceType: "course" } })}>{course.title}</h3>
                   <p style={{ marginTop: 8, color: "#586a62", lineHeight: 1.7 }}>{course.description || "No description"}</p>
                   <p style={{ marginTop: 8, color: "#7a8a83", fontSize: 14 }}>Teacher: {course.teacher.name || course.teacher.email}</p>
+                  {canManageClasses ? <div style={{...actionRowStyle,marginTop:12}}><button type="button" style={secondaryButton} onClick={() => beginEditCourse(course)}><Pencil size={15}/> Edit</button>{role === "ADMIN" ? <button type="button" style={dangerButton} onClick={() => setDeleteTarget({type:"course",id:course.id,title:course.title})}><Trash2 size={15}/> Delete</button> : null}</div> : null}
                   {role === "STUDENT" ? (
                     <button
                       onClick={() => handleEnroll(course.id)}
@@ -468,7 +502,7 @@ export default function EducationClient({ role }: { role: Role }) {
                       </Link>
                       {canManageClasses ? (
                         <>
-                          <button type="button" onClick={() => beginEditClass(klass)} disabled={klass.status === "ENDED" || klass.status === "CANCELLED"} style={secondaryButton}>Edit</button>
+                          <button type="button" onClick={() => { beginEditClass(klass); setManagerPanel("class"); }} disabled={klass.status === "ENDED" || klass.status === "CANCELLED"} style={secondaryButton}>Edit</button>
                           {klass.status === "SCHEDULED" ? (
                             <button type="button" onClick={() => handleClassAction(klass, "start")} disabled={classActionBusy === `${klass.id}:start` || Boolean(mediaError)} title={mediaError ?? undefined} style={secondaryButton}>
                               {classActionBusy === `${klass.id}:start` ? "Starting..." : mediaError ? "Add Link First" : "Start Class"}
@@ -484,6 +518,7 @@ export default function EducationClient({ role }: { role: Role }) {
                               {classActionBusy === `${klass.id}:cancel` ? "Cancelling..." : "Cancel"}
                             </button>
                           ) : null}
+                          {role === "ADMIN" ? <button type="button" onClick={() => setDeleteTarget({type:"class",id:klass.id,title:klass.title})} style={dangerButton}><Trash2 size={15}/> Delete</button> : null}
                         </>
                       ) : null}
                     </div>
@@ -526,6 +561,7 @@ export default function EducationClient({ role }: { role: Role }) {
             </div>
           )}
         </section>
+        <SbaConfirmDialog open={!!deleteTarget} title={`Delete ${deleteTarget?.title ?? "item"}?`} description={deleteTarget?.type === "course" ? "Courses with classes or enrollments are retained to protect learning history." : "Classes with attendance, questions, or recordings are cancelled instead of being destroyed."} confirmLabel="Continue" busy={deleting} onCancel={() => setDeleteTarget(null)} onConfirm={handleDelete}/>
       </section>
 
       <style>{`
